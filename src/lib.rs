@@ -73,7 +73,10 @@ impl Contract {
         None
     }
 
-    pub fn storage_deposit() {}
+    pub fn storage_deposit() {
+
+        
+    }
 
     pub fn storage_balance_of(account_id: AccountId) {}
 
