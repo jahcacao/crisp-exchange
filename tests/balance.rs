@@ -28,6 +28,20 @@ fn deposit_tokens(
     contract.ft_on_transfer(account_id.clone(), amount, "".to_string());
 }
 
+fn withdraw_tokens(
+    context: &mut VMContextBuilder,
+    contract: &mut Contract,
+    account_id: AccountId,
+    token_id: AccountId,
+    amount: U128,
+) {
+    testing_env!(context
+        .predecessor_account_id(account_id)
+        .attached_deposit(to_yocto("1"))
+        .build());
+    contract.withdraw(&token_id, amount.into());
+}
+
 #[test]
 fn test_balance_after_deposit() {
     let (mut context, mut contract) = setup_contract();
@@ -63,4 +77,61 @@ fn test_balance_after_two_deposits() {
     );
     let balance = contract.get_balance(&accounts(0), &accounts(1)).unwrap();
     assert_eq!(balance, 30000);
+}
+
+#[test]
+fn test_balance_after_withdraw() {
+    let (mut context, mut contract) = setup_contract();
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(10000),
+    );
+    withdraw_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(10000),
+    );
+    let balance = contract.get_balance(&accounts(0), &accounts(1)).unwrap();
+    assert_eq!(balance, 0);
+}
+
+#[test]
+#[should_panic(expected = "Not enough tokens")]
+fn test_balance_withdraw_not_enough_token() {
+    let (mut context, mut contract) = setup_contract();
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(10000),
+    );
+    withdraw_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(20000),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Token has not been deposited")]
+fn test_balance_withdraw_without_deposit() {
+    let (mut context, mut contract) = setup_contract();
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    withdraw_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(20000),
+    );
 }

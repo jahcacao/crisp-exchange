@@ -1,7 +1,7 @@
 use balance::AccountsInfo;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
-use near_sdk::{near_bindgen, BorshStorageKey};
+use near_sdk::{env, near_bindgen, BorshStorageKey};
 use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
 
@@ -81,6 +81,19 @@ impl Contract {
                 return balance.balance.get(token_id);
             }
         }
+    }
+
+    pub fn withdraw(&mut self, token_id: &AccountId, amount: u128) {
+        let account_id = env::predecessor_account_id();
+        if let Some(mut balance) = self.accounts.get_balance(&account_id) {
+            if let Some(current_amount) = balance.balance.get(token_id) {
+                assert!(amount <= current_amount, "Not enough tokens");
+                balance.balance.insert(token_id, &(current_amount - amount));
+                self.accounts.accounts_info.insert(&account_id, &balance);
+                return;
+            }
+        }
+        panic!("Token has not been deposited");
     }
 
     pub fn add_liquidity(_pool_id: u8, _token: AccountId, _from: u8, _to: u8) {}
