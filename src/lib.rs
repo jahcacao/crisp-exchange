@@ -1,14 +1,18 @@
+use balance::AccountsInfo;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedSet};
+use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::{near_bindgen, BorshStorageKey};
 use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
 
+mod balance;
 mod pool;
+mod token_receiver;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
     Accounts,
+    Balance,
     Whitelist,
 }
 
@@ -20,7 +24,7 @@ pub struct Contract {
     /// List of all the pools.
     pools: Vec<Pool>,
     //  Accounts registered, keeping track all the amounts deposited, storage and more.
-    accounts: LookupMap<AccountId, u8>,
+    accounts: AccountsInfo,
     //  Set of whitelisted tokens by "owner".
     whitelisted_tokens: UnorderedSet<AccountId>,
 }
@@ -33,7 +37,9 @@ impl Contract {
         Self {
             owner_id: owner_id.clone(),
             pools: Vec::new(),
-            accounts: LookupMap::new(StorageKey::Accounts),
+            accounts: AccountsInfo {
+                accounts_info: UnorderedMap::new(StorageKey::Accounts),
+            },
             whitelisted_tokens: UnorderedSet::new(StorageKey::Whitelist),
         }
     }
@@ -73,20 +79,22 @@ impl Contract {
         None
     }
 
-    pub fn storage_deposit() {
-
-        
+    pub fn get_balance(&self, account_id: &AccountId, token_id: &AccountId) -> Option<u128> {
+        match self.accounts.get_balance(account_id) {
+            None => return Some(0),
+            Some(balance) => {
+                return balance.balance.get(token_id);
+            }
+        }
     }
 
-    pub fn storage_balance_of(account_id: AccountId) {}
+    pub fn add_liquidity(_pool_id: u8, _token: AccountId, _from: u8, _to: u8) {}
 
-    pub fn get_balance(account_id: AccountId) {}
+    pub fn remove_liquidity(_pool_id: u8, _token: AccountId) {}
 
-    pub fn add_liquidity(pool_id: u8, token: AccountId, from: u8, to: u8) {}
+    pub fn get_return(_pool_id: u8, _token1: AccountId, _amount: u8, _token2: AccountId) {}
 
-    pub fn remove_liquidity(pool_id: u8, token: AccountId) {}
-
-    pub fn get_return(pool_id: u8, token1: AccountId, amount: u8, token2: AccountId) {}
-
-    pub fn swap(pool_id: u8, token: String, amount: u8) {}
+    pub fn swap(_pool_id: u8, _token: String, _amount: u8) {}
 }
+
+// TO DO - Storage Management
