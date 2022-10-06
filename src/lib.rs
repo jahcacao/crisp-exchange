@@ -45,15 +45,10 @@ impl Contract {
     }
 
     #[private]
-    pub fn create_pool(&mut self, token1: AccountId, token2: AccountId) -> u8 {
-        let pool = Pool {
-            id: self.pools.len() as u8,
-            tokens: vec![token1, token2],
-            liquidity: vec![0, 0],
-        };
-        let result = pool.id;
-        self.pools.push(pool);
-        return result;
+    pub fn create_pool(&mut self, token1: AccountId, token2: AccountId) -> usize {
+        self.pools
+            .push(Pool::new(self.pools.len() as u8, token1, token2));
+        return self.pools.len() - 1;
     }
 
     pub fn get_pools(&self, from_index: u8, limit: u8) -> Vec<Pool> {
