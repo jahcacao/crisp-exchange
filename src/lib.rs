@@ -1,7 +1,7 @@
 use balance::AccountsInfo;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{UnorderedMap, UnorderedSet};
+use near_sdk::collections::UnorderedMap;
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::{env, near_bindgen, BorshStorageKey};
 use near_sdk::{AccountId, PanicOnDefault};
@@ -17,7 +17,6 @@ pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 pub(crate) enum StorageKey {
     Accounts,
     Balance,
-    Whitelist,
 }
 
 #[near_bindgen]
@@ -29,8 +28,6 @@ pub struct Contract {
     pools: Vec<Pool>,
     //  Accounts registered, keeping track all the amounts deposited, storage and more.
     accounts: AccountsInfo,
-    //  Set of whitelisted tokens by "owner".
-    whitelisted_tokens: UnorderedSet<AccountId>,
 }
 
 #[near_bindgen]
@@ -44,7 +41,6 @@ impl Contract {
             accounts: AccountsInfo {
                 accounts_info: UnorderedMap::new(StorageKey::Accounts),
             },
-            whitelisted_tokens: UnorderedSet::new(StorageKey::Whitelist),
         }
     }
 
@@ -120,13 +116,28 @@ impl Contract {
                     .balance
                     .insert(&token_id, &(current_amount - amount));
                 self.accounts.accounts_info.insert(&account_id, &balance);
-                return;
             }
+        } else {
+            panic!("Not enough tokens");
         }
         self.pools[pool_id as usize].add_liquidity(token_id, amount);
     }
 
-    pub fn remove_liquidity(_pool_id: u8, _token: AccountId) {}
+    pub fn remove_liquidity(&mut self, pool_id: u8, token_id: AccountId, amount: u128) {
+        assert!(pool_id < self.pools.len() as u8, "Bad pool_id");
+        let account_id = env::predecessor_account_id();
+        if let Some(mut balance) = self.accounts.get_balance(&account_id) {
+            if let Some(current_amount) = balance.balance.get(&token_id) {
+                balance
+                    .balance
+                    .insert(&token_id, &(current_amount + amount));
+                self.accounts.accounts_info.insert(&account_id, &balance);
+            }
+        } else {
+            panic!("You have not added liquidity to this pool");
+        }
+        self.pools[pool_id as usize].remove_liquidity(token_id, amount);
+    }
 
     pub fn get_return(_pool_id: u8, _token1: AccountId, _amount: u8, _token2: AccountId) {}
 
