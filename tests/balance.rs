@@ -1,46 +1,8 @@
-use mycelium_lab_near_amm::Contract;
-use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
-use near_sdk::{
-    json_types::U128,
-    test_utils::{accounts, VMContextBuilder},
-    testing_env, AccountId,
-};
-use near_sdk_sim::to_yocto;
+use crate::common::utils::{deposit_tokens, setup_contract, withdraw_tokens};
+use near_sdk::MockedBlockchain;
+use near_sdk::{json_types::U128, test_utils::accounts, testing_env};
 
-fn setup_contract() -> (VMContextBuilder, Contract) {
-    let mut context = VMContextBuilder::new();
-    testing_env!(context.predecessor_account_id(accounts(0)).build());
-    let contract = Contract::new(accounts(0));
-    (context, contract)
-}
-
-fn deposit_tokens(
-    context: &mut VMContextBuilder,
-    contract: &mut Contract,
-    account_id: AccountId,
-    token_id: AccountId,
-    amount: U128,
-) {
-    testing_env!(context
-        .predecessor_account_id(token_id)
-        .attached_deposit(to_yocto("1"))
-        .build());
-    contract.ft_on_transfer(account_id.clone(), amount, "".to_string());
-}
-
-fn withdraw_tokens(
-    context: &mut VMContextBuilder,
-    contract: &mut Contract,
-    account_id: AccountId,
-    token_id: AccountId,
-    amount: U128,
-) {
-    testing_env!(context
-        .predecessor_account_id(account_id)
-        .attached_deposit(to_yocto("1"))
-        .build());
-    contract.withdraw(&token_id, amount.into());
-}
+mod common;
 
 #[test]
 fn test_balance_after_deposit() {
@@ -53,7 +15,9 @@ fn test_balance_after_deposit() {
         accounts(1),
         U128(123456),
     );
-    let balance = contract.get_balance(&accounts(0), &accounts(1)).unwrap();
+    let balance = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
     assert_eq!(balance, 123456);
 }
 
@@ -75,7 +39,9 @@ fn test_balance_after_two_deposits() {
         accounts(1),
         U128(20000),
     );
-    let balance = contract.get_balance(&accounts(0), &accounts(1)).unwrap();
+    let balance = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
     assert_eq!(balance, 30000);
 }
 
@@ -97,7 +63,9 @@ fn test_balance_after_withdraw() {
         accounts(1),
         U128(10000),
     );
-    let balance = contract.get_balance(&accounts(0), &accounts(1)).unwrap();
+    let balance = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
     assert_eq!(balance, 0);
 }
 

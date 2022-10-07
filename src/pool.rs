@@ -18,4 +18,14 @@ impl Pool {
             liquidity: vec![0, 0],
         }
     }
+
+    pub fn add_liquidity(&mut self, token: AccountId, amount: u128) {
+        if token == self.tokens[0] {
+            self.liquidity[0] += amount;
+        } else if token == self.tokens[1] {
+            self.liquidity[1] += amount;
+        } else {
+            panic!("Bad token");
+        }
+    }
 }

@@ -1,6 +1,8 @@
 use balance::AccountsInfo;
+use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
+use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::{env, near_bindgen, BorshStorageKey};
 use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
@@ -8,6 +10,8 @@ use pool::Pool;
 mod balance;
 mod pool;
 mod token_receiver;
+
+pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
@@ -83,20 +87,44 @@ impl Contract {
         }
     }
 
-    pub fn withdraw(&mut self, token_id: &AccountId, amount: u128) {
+    pub fn withdraw(&mut self, token_id: &ValidAccountId, amount: u128) {
         let account_id = env::predecessor_account_id();
         if let Some(mut balance) = self.accounts.get_balance(&account_id) {
-            if let Some(current_amount) = balance.balance.get(token_id) {
+            if let Some(current_amount) = balance.balance.get(&token_id.to_string()) {
                 assert!(amount <= current_amount, "Not enough tokens");
-                balance.balance.insert(token_id, &(current_amount - amount));
+                balance
+                    .balance
+                    .insert(&token_id.to_string(), &(current_amount - amount));
                 self.accounts.accounts_info.insert(&account_id, &balance);
+                ext_fungible_token::ft_transfer(
+                    account_id.to_string(),
+                    U128(amount),
+                    None,
+                    token_id,
+                    1,
+                    GAS_FOR_FT_TRANSFER,
+                );
                 return;
             }
         }
         panic!("Token has not been deposited");
     }
 
-    pub fn add_liquidity(_pool_id: u8, _token: AccountId, _from: u8, _to: u8) {}
+    pub fn add_liquidity(&mut self, pool_id: u8, token_id: AccountId, amount: u128) {
+        assert!(pool_id < self.pools.len() as u8, "Bad pool_id");
+        let account_id = env::predecessor_account_id();
+        if let Some(mut balance) = self.accounts.get_balance(&account_id) {
+            if let Some(current_amount) = balance.balance.get(&token_id) {
+                assert!(amount <= current_amount, "Not enough tokens");
+                balance
+                    .balance
+                    .insert(&token_id, &(current_amount - amount));
+                self.accounts.accounts_info.insert(&account_id, &balance);
+                return;
+            }
+        }
+        self.pools[pool_id as usize].add_liquidity(token_id, amount);
+    }
 
     pub fn remove_liquidity(_pool_id: u8, _token: AccountId) {}
 
