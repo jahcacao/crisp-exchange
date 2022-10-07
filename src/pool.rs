@@ -58,7 +58,7 @@ impl Pool {
         vec[index]
     }
 
-    fn get_index(&self, token: &AccountId) -> usize {
+    pub fn get_index(&self, token: &AccountId) -> usize {
         if token == &self.tokens[0] {
             0 as usize
         } else if token == &self.tokens[1] {

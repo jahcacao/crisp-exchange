@@ -139,9 +139,25 @@ impl Contract {
         self.pools[pool_id as usize].remove_liquidity(token_id, amount);
     }
 
-    pub fn get_return(_pool_id: u8, _token1: AccountId, _amount: u8, _token2: AccountId) {}
+    pub fn get_return(
+        &self,
+        pool_id: u8,
+        token_in: AccountId,
+        amount_in: u128,
+        token_out: AccountId,
+    ) -> u128 {
+        assert!(pool_id < self.pools.len() as u8);
+        let pool = &self.pools[pool_id as usize];
+        let index_in = pool.get_index(&token_in);
+        let index_out = pool.get_index(&token_out);
+        let amount_out: u128 =
+            (pool.liquidity[index_out] * amount_in) / (pool.liquidity[index_in] + amount_in);
+        amount_out
+    }
 
     pub fn swap(_pool_id: u8, _token: String, _amount: u8) {}
 }
 
 // TO DO - Storage Management
+// TO DO - Proper error management
+// TO DO - clear lib.rs out of non-blockchain stuff

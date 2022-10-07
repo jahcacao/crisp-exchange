@@ -118,3 +118,29 @@ fn withdraw_liquidity() {
     let share = pool.get_share(&accounts(0).to_string(), &accounts(1).to_string());
     assert_eq!(share, 0);
 }
+
+#[test]
+fn get_return() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string());
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.add_liquidity(0, accounts(1).to_string(), 1000);
+    contract.add_liquidity(0, accounts(2).to_string(), 1000);
+    let result = contract.get_return(0, accounts(1).to_string(), 200, accounts(2).to_string());
+    assert!(result == 166);
+}
