@@ -4,16 +4,18 @@ use near_sdk::{
 };
 use std::collections::HashMap;
 
+use crate::errors::*;
+
 #[derive(BorshDeserialize, BorshSerialize, Clone, Default)]
 pub struct Pool {
-    pub id: u8,
+    pub id: usize,
     pub tokens: Vec<AccountId>,
     pub liquidity: Vec<u128>,
     pub shares: HashMap<AccountId, Vec<u128>>,
 }
 
 impl Pool {
-    pub fn new(id: u8, token1: AccountId, token2: AccountId) -> Pool {
+    pub fn new(id: usize, token1: AccountId, token2: AccountId) -> Pool {
         Pool {
             id: id,
             tokens: vec![token1, token2],
@@ -40,9 +42,10 @@ impl Pool {
         let share = self.get_share(&account_id, &token);
         assert!(
             self.shares.get(&account_id).is_some(),
-            "You have not added liquidity to this pool at all"
+            "{}",
+            YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL
         );
-        assert!(share >= amount, "You want to remove too much liquidity");
+        assert!(share >= amount, "{}", YOU_WANT_TO_REMOVE_TOO_MUCH_LIQUIDITY);
         let mut vec = self.shares.get(&account_id).unwrap().clone();
         vec[index] -= amount;
         self.shares.insert(account_id, vec);
@@ -64,7 +67,7 @@ impl Pool {
         } else if token == &self.tokens[1] {
             1 as usize
         } else {
-            panic!("Bad token");
+            panic!("{}", BAD_TOKEN);
         }
     }
 
@@ -74,7 +77,7 @@ impl Pool {
         } else if token == &self.tokens[1] {
             0 as usize
         } else {
-            panic!("Bad token");
+            panic!("{}", BAD_TOKEN);
         }
     }
 }
