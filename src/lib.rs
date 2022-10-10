@@ -120,7 +120,7 @@ impl Contract {
         } else {
             panic!("Not enough tokens");
         }
-        self.pools[pool_id as usize].add_liquidity(token_id, amount);
+        self.pools[pool_id as usize].add_liquidity(&token_id, amount);
     }
 
     pub fn remove_liquidity(&mut self, pool_id: u8, token_id: AccountId, amount: u128) {
@@ -136,26 +136,47 @@ impl Contract {
         } else {
             panic!("You have not added liquidity to this pool");
         }
-        self.pools[pool_id as usize].remove_liquidity(token_id, amount);
+        self.pools[pool_id as usize].remove_liquidity(&token_id, amount);
     }
 
-    pub fn get_return(
-        &self,
-        pool_id: u8,
-        token_in: AccountId,
-        amount_in: u128,
-        token_out: AccountId,
-    ) -> u128 {
-        assert!(pool_id < self.pools.len() as u8);
-        let pool = &self.pools[pool_id as usize];
+    pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
+        assert!(pool_id < self.pools.len());
+        let pool = &self.pools[pool_id];
         let index_in = pool.get_index(&token_in);
-        let index_out = pool.get_index(&token_out);
+        let index_out = pool.get_other_index(&token_in);
         let amount_out: u128 =
             (pool.liquidity[index_out] * amount_in) / (pool.liquidity[index_in] + amount_in);
         amount_out
     }
 
-    pub fn swap(_pool_id: u8, _token: String, _amount: u8) {}
+    pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
+        assert!(pool_id < self.pools.len());
+        let account_id = env::predecessor_account_id();
+        let other_index = self.pools[pool_id].get_other_index(&token_in);
+        if let Some(mut balance) = self.accounts.get_balance(&account_id) {
+            if let Some(current_amount) = balance.balance.get(&token_in) {
+                assert!(amount <= current_amount, "Not enough tokens");
+                balance
+                    .balance
+                    .insert(&token_in, &(current_amount - amount));
+                self.accounts.accounts_info.insert(&account_id, &balance);
+            }
+        } else {
+            panic!("Not enough tokens");
+        }
+        let amount_out = self.get_return(pool_id, &token_in, amount);
+        let pool = &mut self.pools[pool_id];
+        let token_out = &pool.tokens[other_index].clone();
+        let mut balance = self.accounts.get_balance(&account_id).unwrap();
+        if let Some(current_amount) = balance.balance.get(token_out) {
+            balance
+                .balance
+                .insert(token_out, &(current_amount + amount_out));
+            self.accounts.accounts_info.insert(&account_id, &balance);
+        }
+        pool.add_liquidity(&token_in, amount);
+        pool.remove_liquidity(token_out, amount_out);
+    }
 }
 
 // TO DO - Storage Management

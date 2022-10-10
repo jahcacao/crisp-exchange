@@ -22,7 +22,7 @@ impl Pool {
         }
     }
 
-    pub fn add_liquidity(&mut self, token: AccountId, amount: u128) {
+    pub fn add_liquidity(&mut self, token: &AccountId, amount: u128) {
         let index = self.get_index(&token);
         let account_id = env::predecessor_account_id();
         let mut vec = match self.shares.get(&account_id) {
@@ -34,7 +34,7 @@ impl Pool {
         self.shares.insert(account_id, vec);
     }
 
-    pub fn remove_liquidity(&mut self, token: AccountId, amount: u128) {
+    pub fn remove_liquidity(&mut self, token: &AccountId, amount: u128) {
         let index = self.get_index(&token);
         let account_id = env::predecessor_account_id();
         let share = self.get_share(&account_id, &token);
@@ -63,6 +63,16 @@ impl Pool {
             0 as usize
         } else if token == &self.tokens[1] {
             1 as usize
+        } else {
+            panic!("Bad token");
+        }
+    }
+
+    pub fn get_other_index(&self, token: &AccountId) -> usize {
+        if token == &self.tokens[0] {
+            1 as usize
+        } else if token == &self.tokens[1] {
+            0 as usize
         } else {
             panic!("Bad token");
         }
