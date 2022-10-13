@@ -1,12 +1,15 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    env, AccountId,
+    env,
+    serde::Serialize,
+    AccountId,
 };
 use std::collections::HashMap;
 
 use crate::errors::*;
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Default)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Default, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Pool {
     pub id: usize,
     pub tokens: Vec<AccountId>,

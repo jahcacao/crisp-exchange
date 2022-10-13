@@ -2,7 +2,7 @@ use balance::AccountsInfo;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
-use near_sdk::json_types::{ValidAccountId, U128};
+use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, BorshStorageKey};
 use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
@@ -20,7 +20,6 @@ pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
     Accounts,
-    Balance,
 }
 
 #[near_bindgen]
@@ -86,20 +85,20 @@ impl Contract {
         }
     }
 
-    pub fn withdraw(&mut self, token_id: &ValidAccountId, amount: u128) {
+    pub fn withdraw(&mut self, token_id: AccountId, amount: u128) {
         let account_id = env::predecessor_account_id();
         if let Some(mut balance) = self.accounts.get_balance(&account_id) {
             if let Some(current_amount) = balance.balance.get(&token_id.to_string()) {
                 assert!(amount <= current_amount, "{}", NOT_ENOUGH_TOKENS);
                 balance
                     .balance
-                    .insert(&token_id.to_string(), &(current_amount - amount));
+                    .insert(&token_id, &(current_amount - amount));
                 self.accounts.accounts_info.insert(&account_id, &balance);
                 ext_fungible_token::ft_transfer(
                     account_id.to_string(),
                     U128(amount),
                     None,
-                    token_id,
+                    &token_id,
                     1,
                     GAS_FOR_FT_TRANSFER,
                 );
@@ -174,7 +173,7 @@ impl Contract {
         if let Some(current_amount) = balance.balance.get(token_out) {
             balance
                 .balance
-                .insert(token_out, &(current_amount + amount_out));
+                .insert(&token_out.to_string(), &(current_amount + amount_out));
             self.accounts.accounts_info.insert(&account_id, &balance);
         }
         pool.add_liquidity(&token_in, amount);

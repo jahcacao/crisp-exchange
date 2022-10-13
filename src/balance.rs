@@ -14,9 +14,9 @@ pub struct Balance {
 }
 
 impl Balance {
-    pub fn new() -> Balance {
+    pub fn new(account_id: AccountId) -> Balance {
         Balance {
-            balance: UnorderedMap::new(StorageKey::Balance),
+            balance: UnorderedMap::new(account_id.into_bytes()),
         }
     }
 }
@@ -29,20 +29,19 @@ impl AccountsInfo {
     }
 
     pub fn get_balance(&self, account_id: &AccountId) -> Option<Balance> {
-        let x = self.accounts_info.get(account_id);
-        x
+        self.accounts_info.get(account_id)
     }
 
     pub fn deposit_ft(&mut self, account_id: &AccountId, token_in: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.accounts_info.get(account_id) {
+        if let Some(mut balance) = self.get_balance(&account_id.to_string()) {
             let current_value = balance.balance.get(token_in).unwrap_or(0);
             let new_value = current_value + amount;
-            balance.balance.insert(token_in, &new_value);
-            self.accounts_info.insert(account_id, &balance);
+            balance.balance.insert(&token_in.to_string(), &new_value);
+            self.accounts_info.insert(&account_id.to_string(), &balance);
         } else {
-            let mut balance = Balance::new();
-            balance.balance.insert(token_in, &amount);
-            self.accounts_info.insert(account_id, &balance);
+            let mut balance = Balance::new(account_id.clone());
+            balance.balance.insert(&token_in.to_string(), &amount);
+            self.accounts_info.insert(&account_id.to_string(), &balance);
         }
     }
 }

@@ -40,5 +40,5 @@ pub fn withdraw_tokens(
         .predecessor_account_id(account_id)
         .attached_deposit(to_yocto("1"))
         .build());
-    contract.withdraw(&token_id, amount.into());
+    contract.withdraw(token_id.into(), amount.into());
 }
