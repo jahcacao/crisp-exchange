@@ -83,4 +83,12 @@ impl Pool {
             panic!("{}", BAD_TOKEN);
         }
     }
+
+    pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> u128 {
+        let index_in = self.get_index(&token_in);
+        let index_out = self.get_other_index(&token_in);
+        let amount_out: u128 =
+            (self.liquidity[index_out] * amount_in) / (self.liquidity[index_in] + amount_in);
+        amount_out
+    }
 }
