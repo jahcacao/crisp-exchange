@@ -65,7 +65,7 @@ impl Contract {
         match self.accounts.get_balance(account_id) {
             None => return Some(0),
             Some(balance) => {
-                return balance.balance.get(token);
+                return balance.get(token);
             }
         }
     }
@@ -79,14 +79,14 @@ impl Contract {
         assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
         let account_id = env::predecessor_account_id();
         self.accounts.decrease_balance(&account_id, &token, amount);
-        self.pools[pool_id as usize].add_liquidity(&token, amount);
+        self.pools[pool_id as usize].add_liquidity(&account_id, &token, amount);
     }
 
     pub fn remove_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
         assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
         let account_id = env::predecessor_account_id();
         self.accounts.increase_balance(&account_id, &token, amount);
-        self.pools[pool_id as usize].remove_liquidity(&token, amount);
+        self.pools[pool_id as usize].remove_liquidity(&account_id, &token, amount);
     }
 
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
@@ -106,11 +106,7 @@ impl Contract {
         let token_out = &pool.tokens[other_index].clone();
         self.accounts
             .increase_balance(&account_id, &token_out, amount_out);
-        pool.add_liquidity(&token_in, amount);
-        pool.remove_liquidity(token_out, amount_out);
+        pool.add_liquidity(&account_id, &token_in, amount);
+        pool.remove_liquidity(&account_id, token_out, amount_out);
     }
 }
-
-// TO DO - Storage Management
-// TO DO - Proper error management
-// TO DO - clear lib.rs out of non-blockchain stuff

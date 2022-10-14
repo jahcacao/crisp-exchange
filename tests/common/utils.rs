@@ -29,6 +29,7 @@ pub fn deposit_tokens(
     contract.ft_on_transfer(account_id.clone(), amount, "".to_string());
 }
 
+#[allow(dead_code)]
 pub fn withdraw_tokens(
     context: &mut VMContextBuilder,
     contract: &mut Contract,

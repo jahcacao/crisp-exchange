@@ -1,6 +1,5 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    env,
     serde::Serialize,
     AccountId,
 };
@@ -27,31 +26,29 @@ impl Pool {
         }
     }
 
-    pub fn add_liquidity(&mut self, token: &AccountId, amount: u128) {
+    pub fn add_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
         let index = self.get_index(&token);
-        let account_id = env::predecessor_account_id();
-        let mut vec = match self.shares.get(&account_id) {
+        let mut vec = match self.shares.get(account_id) {
             Some(vec) => vec.clone(),
             _ => vec![0, 0],
         };
         vec[index] += amount;
         self.liquidity[index] += amount;
-        self.shares.insert(account_id, vec);
+        self.shares.insert(account_id.to_string(), vec);
     }
 
-    pub fn remove_liquidity(&mut self, token: &AccountId, amount: u128) {
+    pub fn remove_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
         let index = self.get_index(&token);
-        let account_id = env::predecessor_account_id();
         let share = self.get_share(&account_id, &token);
         assert!(
-            self.shares.get(&account_id).is_some(),
+            self.shares.get(account_id).is_some(),
             "{}",
             YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL
         );
         assert!(share >= amount, "{}", YOU_WANT_TO_REMOVE_TOO_MUCH_LIQUIDITY);
-        let mut vec = self.shares.get(&account_id).unwrap().clone();
+        let mut vec = self.shares.get(account_id).unwrap().clone();
         vec[index] -= amount;
-        self.shares.insert(account_id, vec);
+        self.shares.insert(account_id.to_string(), vec);
         self.liquidity[index] -= amount;
     }
 
