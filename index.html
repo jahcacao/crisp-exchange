@@ -9,10 +9,13 @@
 </head>
 
 <body>
-  <ul id="messages"></ul>
-  <textarea id="text" placeholder="Add Message"></textarea>
-  <button id="add-text">Add Text</button>
-  <script src="https://cdn.jsdelivr.net/npm/near-api-js@0.45.1/dist/near-api-js.min.js"></script>
+  <button id="sign-in">Sign In</button>
+  <button id="get-return">Get Return</button>
+  <button id="result">Result</button>
+  <textarea id="pool-id" placeholder="Pool Id"></textarea>
+  <textarea id="token-in" placeholder="Token In"></textarea>
+  <textarea id="amount-in" placeholder="Amount In"></textarea>
+  <script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js"></script>
   <script>
     // connect to NEAR
     const near = new nearApi.Near({
@@ -23,42 +26,62 @@
     });
     
     // connect to the NEAR Wallet
-    const wallet = new nearApi.WalletConnection(near, 'my-app');
+    const wallet = new nearApi.WalletConnection(near, 'my-ap');
+    // wallet.requestSignOut();
 
     // connect to a NEAR smart contract
     const contract = new nearApi.Contract(wallet.account(), 'dev-1665658251455-73026201479289', {
-      viewMethods: ['get_pool'],
-      changeMethods: ['addMessage']
+      viewMethods: ['get_return'],
+      changeMethods: [],
     });
 
-    const button = document.getElementById('add-text');
+    const button = document.getElementById('sign-in');
     if (!wallet.isSignedIn()) {
-      button.textContent = 'SignIn with NEAR'
+      button.textContent = 'Sign In'
+    } else {
+      button.textContent = 'Sign Out'
     }
 
     // call the getMessages view method
-    contract.getMessages()
-      .then(messages => {
-        const ul = document.getElementById('messages');
-        messages.forEach(message => {
-          const li = document.createElement('li');
-          li.textContent = `${message.sender} - ${message.text}`;
-          ul.appendChild(li);
-        })
-      });
+    // contract.getMessages()
+    //   .then(messages => {
+    //     const ul = document.getElementById('messages');
+    //     messages.forEach(message => {
+    //       const li = document.createElement('li');
+    //       li.textContent = `${message.sender} - ${message.text}`;
+    //       ul.appendChild(li);
+    //     })
+    //   });
+
+    document.getElementById('get-return').addEventListener('click', () => {
+      contract.get_return({
+          args: {
+            pool_id: document.getElementById('pool-id').value,
+            token_in: document.getElementById('token-in').value,
+            amount_in: document.getElementById('amount-in').value,
+          },
+          amount: nearApi.utils.format.parseNearAmount('1')
+        }).then(amount_out => {
+            const button3 = document.getElementById('result');
+            button.textContent = amount_out;
+          }
+        );
+    });
 
     // Either sign in or call the addMessage change method on button click
-    document.getElementById('add-text').addEventListener('click', () => {
+    document.getElementById('sign-in').addEventListener('click', () => {
       if (wallet.isSignedIn()) {
-        contract.addMessage({
-          args: { text: document.getElementById('text').value },
-          amount: nearApi.utils.format.parseNearAmount('1')
-        })
+        wallet.signOut();
       } else {
         wallet.requestSignIn({
-          contractId: 'guest-book.testnet',
-          methodNames: ['getMessages', 'addMessage']
+          contractId: 'dev-1665658251455-73026201479289',
+          methodNames: ['get_return']
         });
+      }
+      if (!wallet.isSignedIn()) {
+        button.textContent = 'Sign In'
+      } else {
+        button.textContent = 'Sign Out'
       }
     });
   </script>
