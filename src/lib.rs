@@ -1,7 +1,7 @@
 use balance::AccountsInfo;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
-use near_sdk::{env, near_bindgen, BorshStorageKey};
+use near_sdk::{env, near_bindgen};
 use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
 
@@ -11,11 +11,6 @@ mod balance;
 mod errors;
 mod pool;
 mod token_receiver;
-
-#[derive(BorshStorageKey, BorshSerialize)]
-pub(crate) enum StorageKey {
-    Accounts,
-}
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -37,7 +32,7 @@ impl Contract {
             owner_id: owner_id.clone(),
             pools: Vec::new(),
             accounts: AccountsInfo {
-                accounts_info: UnorderedMap::new(StorageKey::Accounts),
+                accounts_info: UnorderedMap::new(b"a"),
             },
         }
     }

@@ -6,7 +6,6 @@ use near_sdk::{collections::UnorderedMap, AccountId};
 use crate::errors::{
     NOT_ENOUGH_TOKENS, TOKEN_HAS_NOT_BEEN_DEPOSITED, YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL,
 };
-use crate::StorageKey;
 
 pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 
@@ -18,12 +17,6 @@ pub struct AccountsInfo {
 type Balance = UnorderedMap<AccountId, u128>;
 
 impl AccountsInfo {
-    pub fn new() -> AccountsInfo {
-        AccountsInfo {
-            accounts_info: UnorderedMap::new(StorageKey::Accounts),
-        }
-    }
-
     pub fn get_balance(&self, account_id: &AccountId) -> Option<Balance> {
         self.accounts_info.get(account_id)
     }
