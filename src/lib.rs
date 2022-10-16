@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use balance::AccountsInfo;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
@@ -62,6 +64,18 @@ impl Contract {
             Some(balance) => {
                 return balance.get(token);
             }
+        }
+    }
+
+    pub fn get_balance_all_tokens(&self, account: &AccountId) -> String {
+        if let Some(balance) = self.accounts.get_balance(account) {
+            let mut result = String::new();
+            for (token, amount) in balance.iter() {
+                result += &format!("{token}: {amount}, ");
+            }
+            return result
+        } else {
+            return String::new();
         }
     }
 
