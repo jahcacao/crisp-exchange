@@ -8,6 +8,7 @@ use crate::common::utils::setup_contract;
 
 mod common;
 
+/*
 #[test]
 fn create_pool() {
     let (mut _context, mut contract) = setup_contract();
@@ -180,3 +181,4 @@ fn swap() {
     assert!(pool.liquidity[0] == 11000);
     assert!(pool.liquidity[1] == 9091);
 }
+*/

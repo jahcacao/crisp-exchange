@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use balance::AccountsInfo;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
@@ -11,7 +9,9 @@ use crate::errors::*;
 
 mod balance;
 mod errors;
+mod fees;
 mod pool;
+mod position;
 mod token_receiver;
 
 #[near_bindgen]
@@ -73,7 +73,7 @@ impl Contract {
             for (token, amount) in balance.iter() {
                 result += &format!("{token}: {amount}, ");
             }
-            return result
+            return result;
         } else {
             return String::new();
         }
@@ -84,19 +84,19 @@ impl Contract {
         self.accounts.withdraw(account_id, token, amount);
     }
 
-    pub fn add_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
-        assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
-        let account_id = env::predecessor_account_id();
-        self.accounts.decrease_balance(&account_id, &token, amount);
-        self.pools[pool_id as usize].add_liquidity(&account_id, &token, amount);
-    }
+    // pub fn add_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
+    //     assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
+    //     let account_id = env::predecessor_account_id();
+    //     self.accounts.decrease_balance(&account_id, &token, amount);
+    //     self.pools[pool_id as usize].add_liquidity(&account_id, &token, amount);
+    // }
 
-    pub fn remove_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
-        assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
-        let account_id = env::predecessor_account_id();
-        self.accounts.increase_balance(&account_id, &token, amount);
-        self.pools[pool_id as usize].remove_liquidity(&account_id, &token, amount);
-    }
+    // pub fn remove_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
+    //     assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
+    //     let account_id = env::predecessor_account_id();
+    //     self.accounts.increase_balance(&account_id, &token, amount);
+    //     self.pools[pool_id as usize].remove_liquidity(&account_id, &token, amount);
+    // }
 
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
         assert!(pool_id < self.pools.len());
@@ -104,18 +104,51 @@ impl Contract {
         pool.get_return(token_in, amount_in)
     }
 
-    pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
-        assert!(pool_id < self.pools.len());
-        let account_id = env::predecessor_account_id();
-        let other_index = self.pools[pool_id].get_other_index(&token_in);
-        self.accounts
-            .decrease_balance(&account_id, &token_in, amount);
-        let amount_out = self.get_return(pool_id, &token_in, amount);
-        let pool = &mut self.pools[pool_id];
-        let token_out = &pool.tokens[other_index].clone();
-        self.accounts
-            .increase_balance(&account_id, &token_out, amount_out);
-        pool.add_liquidity(&account_id, &token_in, amount);
-        pool.remove_liquidity(&account_id, token_out, amount_out);
+    pub fn get_price(&self, pool_id: usize, token_in: &AccountId) -> u128 {
+        self.get_return(pool_id, token_in, 1)
     }
+
+    // pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
+    //     assert!(pool_id < self.pools.len());
+    //     let account_id = env::predecessor_account_id();
+    //     let other_index = self.pools[pool_id].get_other_index(&token_in);
+    //     self.accounts
+    //         .decrease_balance(&account_id, &token_in, amount);
+    //     let amount_out = self.get_return(pool_id, &token_in, amount);
+    //     let pool = &mut self.pools[pool_id];
+    //     let token_out = &pool.tokens[other_index].clone();
+    //     self.accounts
+    //         .increase_balance(&account_id, &token_out, amount_out);
+    //     pool.add_liquidity(&account_id, &token_in, amount);
+    //     pool.remove_liquidity(&account_id, token_out, amount_out);
+    // }
+
+    pub fn open_position(
+        &mut self,
+        pool_id: usize,
+        token_amount_1: (AccountId, u128),
+        token_amount_2: (AccountId, u128),
+        lower_price: u128,
+        upper_price: u128,
+    ) {
+        assert!(pool_id < self.pools.len());
+        let pool = &mut self.pools[pool_id];
+        pool.open_position(token_amount_1, token_amount_2, lower_price, upper_price);
+    }
+
+    pub fn close_position(&mut self) {}
 }
+
+// open order for concentrated liquidity
+// fees
+// rewards
+// test get_balance
+// test get_balance_all_tokens
+// test withdraw
+// test deposits
+// test liquidity
+// test get return
+// tests for swap
+// tests for fees
+// tests for rewards
+// front

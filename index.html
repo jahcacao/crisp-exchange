@@ -1,95 +1,3 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-
-<body>
-  <button id="sign-in">Sign In</button>
-  <button id="get-return">Get Return</button>
-  <button id="result">Result</button>
-  <textarea id="messages"></textarea>
-  <textarea id="pool-id" placeholder="Pool Id"></textarea>
-  <textarea id="token-in" placeholder="Token In"></textarea>
-  <textarea id="amount-in" placeholder="Amount In"></textarea>
-  <script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js"></script>
-  <script>
-    // connect to NEAR
-    const near = new nearApi.Near({
-      keyStore: new nearApi.keyStores.BrowserLocalStorageKeyStore(),
-      networkId: 'testnet',
-      nodeUrl: 'https://rpc.testnet.near.org',
-      walletUrl: 'https://wallet.testnet.near.org'
-    });
-    
-    // connect to the NEAR Wallet
-    const wallet = new nearApi.WalletConnection(near, 'my-ap');
-    // wallet.requestSignOut();
-
-    // connect to a NEAR smart contract
-    const contract = new nearApi.Contract(wallet.account(), 'dev-1665658251455-73026201479289', {
-      viewMethods: ['get_return', 'get_pools'],
-      changeMethods: [],
-    });
-
-    const button = document.getElementById('sign-in');
-    if (!wallet.isSignedIn()) {
-      button.textContent = 'Sign In'
-    } else {
-      button.textContent = 'Sign Out'
-    }
-
-    // call the getMessages view method
-    contract.get_pools()
-      .then(messages => {
-        const ul = document.getElementById('messages');
-        messages.forEach(message => {
-          const li = document.createElement('li');
-          li.textContent = `${message.pool_id} - ${message.tokens[0]} - ${message.tokens[1]}`;
-          ul.appendChild(li);
-        })
-      });
-
-    document.getElementById('get-return').addEventListener('click', () => {
-      contract.get_return({
-          args: {
-            pool_id: document.getElementById('pool-id').value,
-            token_in: document.getElementById('token-in').value,
-            amount_in: document.getElementById('amount-in').value,
-          },
-          amount: nearApi.utils.format.parseNearAmount('1')
-        }).then(amount_out => {
-            const button3 = document.getElementById('result');
-            button.textContent = amount_out;
-          }
-        );
-    });
-
-    // Either sign in or call the addMessage change method on button click
-    document.getElementById('sign-in').addEventListener('click', () => {
-      if (wallet.isSignedIn()) {
-        wallet.signOut();
-      } else {
-        wallet.requestSignIn({
-          contractId: 'dev-1665658251455-73026201479289',
-          methodNames: ['get_return', 'get_pools']
-        });
-      }
-      if (!wallet.isSignedIn()) {
-        button.textContent = 'Sign In'
-      } else {
-        button.textContent = 'Sign Out'
-      }
-    });
-  </script>
-</body>
-
-</html> -->
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -104,29 +12,41 @@
   <ul id="messages"></ul>
   <div>
   <div>
-    <button id="sign">Sign</button>
+    <button id="sign" style="width:150px">Sign In</button>
   </div>
   <div>
-    <button id="deposit">Deposit</button>
+    <button id="deposit" style="width:150px">Deposit</button>
     <textarea id="deposit-token" placeholder="Token Id"></textarea>
     <textarea id="deposit-amount" placeholder="Amount"></textarea>
   </div>
   <div>
-    <button id="withdraw">Withdraw</button>
+    <button id="withdraw" style="width:150px">Withdraw</button>
     <textarea id="withdraw-token" placeholder="Token Id"></textarea>
     <textarea id="withdraw-amount" placeholder="Amount"></textarea>
   </div>
   <div>
-    <button id="get-return">Get Return</button>
+    <button id="get-return" style="width:150px">Get Return</button>
     <textarea id="get-return-pool-id" placeholder="Pool Id"></textarea>
     <textarea id="get-return-token" placeholder="Token Id"></textarea>
     <textarea id="get-return-amount" placeholder="Amount"></textarea>
   </div>
   <div>
-    <button id="swap">Swap</button>
+    <button id="swap" style="width:150px">Swap</button>
     <textarea id="swap-pool-id" placeholder="Pool Id"></textarea>
     <textarea id="swap-token" placeholder="Token Id"></textarea>
     <textarea id="swap-amount" placeholder="Amount"></textarea>
+  </div>
+  <div>
+    <button id="add-liquidity" style="width:150px">Add Liquidity</button>
+    <textarea id="add-liquidity-pool-id" placeholder="Pool Id"></textarea>
+    <textarea id="add-liquidity-token" placeholder="Token Id"></textarea>
+    <textarea id="add-liquidity-amount" placeholder="Amount"></textarea>
+  </div>
+  <div>
+    <button id="remove-liquidity" style="width:150px">Remove Liquidity</button>
+    <textarea id="add-liquidity-pool-id" placeholder="Pool Id"></textarea>
+    <textarea id="add-liquidity-token" placeholder="Token Id"></textarea>
+    <textarea id="add-liquidity-amount" placeholder="Amount"></textarea>
   </div>
   <div>
   <script src="https://cdn.jsdelivr.net/npm/near-api-js@1.1.0/dist/near-api-js.js"></script>
@@ -188,12 +108,20 @@
       }
     });
 
-    document.getElementById('deposit').addEventListener('click', () => {
+    document.getElementById('add-liquidity').addEventListener('click', () => {
 
     });
 
-    document.getElementById('withdraw').addEventListener('click', () => {
+    document.getElementById('remove-liquidity').addEventListener('click', () => {
 
+    });
+
+    document.getElementById('deposit').addEventListener('click', () => {
+      
+    });
+
+    document.getElementById('withdraw').addEventListener('click', () => {
+        
     });
 
     document.getElementById('get-return').addEventListener('click', () => {
@@ -201,7 +129,7 @@
     });
 
     document.getElementById('swap').addEventListener('click', () => {
-
+        console.log(`contractId = ${contract.contractId}`);
     });
   </script>
 </body>
