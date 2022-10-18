@@ -108,20 +108,25 @@ impl Contract {
         self.get_return(pool_id, token_in, 1)
     }
 
-    // pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
-    //     assert!(pool_id < self.pools.len());
-    //     let account_id = env::predecessor_account_id();
-    //     let other_index = self.pools[pool_id].get_other_index(&token_in);
-    //     self.accounts
-    //         .decrease_balance(&account_id, &token_in, amount);
-    //     let amount_out = self.get_return(pool_id, &token_in, amount);
-    //     let pool = &mut self.pools[pool_id];
-    //     let token_out = &pool.tokens[other_index].clone();
-    //     self.accounts
-    //         .increase_balance(&account_id, &token_out, amount_out);
-    //     pool.add_liquidity(&account_id, &token_in, amount);
-    //     pool.remove_liquidity(&account_id, token_out, amount_out);
-    // }
+    pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
+        assert!(pool_id < self.pools.len());
+        let account_id = env::predecessor_account_id();
+        let other_index = self.pools[pool_id].get_other_index(&token_in);
+        self.accounts
+            .decrease_balance(&account_id, &token_in, amount);
+        let amount_out = self.get_return(pool_id, &token_in, amount);
+        let pool = &mut self.pools[pool_id];
+        let token_out = &pool.tokens[other_index].clone();
+        self.accounts
+            .increase_balance(&account_id, &token_out, amount_out);
+        pool.swap(
+            account_id,
+            token_in,
+            token_out.to_string(),
+            amount,
+            amount_out,
+        );
+    }
 
     pub fn open_position(
         &mut self,

@@ -12,10 +12,9 @@ use crate::{errors::*, position::Position};
 pub struct Pool {
     pub id: usize,
     pub tokens: Vec<AccountId>,
-    pub liquidity: Vec<u128>,
+    pub active_liquidity: Vec<u128>,
     pub positions: Vec<Position>,
     pub shares: HashMap<AccountId, Vec<u128>>,
-    pub price: u128,
 }
 
 impl Pool {
@@ -23,38 +22,37 @@ impl Pool {
         Pool {
             id: id,
             tokens: vec![token1, token2],
-            liquidity: vec![0, 0],
+            active_liquidity: vec![0, 0],
             positions: vec![],
             shares: HashMap::new(),
-            price: 0,
         }
     }
 
-    // pub fn add_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-    //     let index = self.get_index(&token);
-    //     let mut vec = match self.shares.get(account_id) {
-    //         Some(vec) => vec.clone(),
-    //         _ => vec![0, 0],
-    //     };
-    //     vec[index] += amount;
-    //     self.liquidity[index] += amount;
-    //     self.shares.insert(account_id.to_string(), vec);
-    // }
+    pub fn add_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
+        let index = self.get_index(&token);
+        let mut vec = match self.shares.get(account_id) {
+            Some(vec) => vec.clone(),
+            _ => vec![0, 0],
+        };
+        vec[index] += amount;
+        self.active_liquidity[index] += amount;
+        self.shares.insert(account_id.to_string(), vec);
+    }
 
-    // pub fn remove_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-    //     let index = self.get_index(&token);
-    //     let share = self.get_share(&account_id, &token);
-    //     assert!(
-    //         self.shares.get(account_id).is_some(),
-    //         "{}",
-    //         YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL
-    //     );
-    //     assert!(share >= amount, "{}", YOU_WANT_TO_REMOVE_TOO_MUCH_LIQUIDITY);
-    //     let mut vec = self.shares.get(account_id).unwrap().clone();
-    //     vec[index] -= amount;
-    //     self.shares.insert(account_id.to_string(), vec);
-    //     self.liquidity[index] -= amount;
-    // }
+    pub fn remove_liquidity(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
+        let index = self.get_index(&token);
+        let share = self.get_share(&account_id, &token);
+        assert!(
+            self.shares.get(account_id).is_some(),
+            "{}",
+            YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL
+        );
+        assert!(share >= amount, "{}", YOU_WANT_TO_REMOVE_TOO_MUCH_LIQUIDITY);
+        let mut vec = self.shares.get(account_id).unwrap().clone();
+        vec[index] -= amount;
+        self.shares.insert(account_id.to_string(), vec);
+        self.active_liquidity[index] -= amount;
+    }
 
     pub fn get_share(&self, account_id: &AccountId, token: &AccountId) -> u128 {
         let index = self.get_index(token);
@@ -88,8 +86,8 @@ impl Pool {
     pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> u128 {
         let index_in = self.get_index(&token_in);
         let index_out = self.get_other_index(&token_in);
-        let amount_out: u128 =
-            (self.liquidity[index_out] * amount_in) / (self.liquidity[index_in] + amount_in);
+        let amount_out: u128 = (self.active_liquidity[index_out] * amount_in)
+            / (self.active_liquidity[index_in] + amount_in);
         amount_out
     }
 
@@ -124,25 +122,38 @@ impl Pool {
     }
 
     pub fn refresh_liquidity(&mut self) {
-        self.liquidity[0] = 0;
-        self.liquidity[1] = 0;
-        for position in &self.positions {
-            if position.is_active {
-                self.liquidity[0] += position.liquidity[0];
-                self.liquidity[1] += position.liquidity[1];
+        for index in 0..2 {
+            let token = &self.tokens[index];
+            let price = self.get_price(token);
+            for position in &mut self.positions {
+                if self.tokens[index] == position.primary_token {
+                    if !position.is_active
+                        && price <= position.upper_price
+                        && position.lower_price <= price
+                    {
+                        self.active_liquidity[index] += position.liquidity[index];
+                        position.is_active = true;
+                    } else if position.is_active
+                        && (price > position.upper_price || price < position.lower_price)
+                    {
+                        self.active_liquidity[index] -= position.liquidity[index];
+                        position.is_active = false;
+                    }
+                }
             }
         }
     }
 
-    pub fn refresh_positions(&mut self) {
-        let price1 = self.get_price(&self.tokens[0]);
-        let price2 = self.get_price(&self.tokens[1]);
-        for position in &mut self.positions {
-            if self.tokens[0] == position.primary_token {
-                position.refresh_activity(price1);
-            } else {
-                position.refresh_activity(price2);
-            }
-        }
+    pub fn swap(
+        &mut self,
+        account_id: AccountId,
+        token_in: AccountId,
+        token_out: AccountId,
+        amount_in: u128,
+        amount_out: u128,
+    ) {
+        self.add_liquidity(&account_id, &token_in, amount_in);
+        self.remove_liquidity(&account_id, &token_out, amount_out);
+        self.refresh_liquidity();
     }
 }
