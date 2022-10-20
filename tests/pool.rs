@@ -8,47 +8,65 @@ use crate::common::utils::setup_contract;
 
 mod common;
 
-/*
 #[test]
 fn create_pool() {
     let (mut _context, mut contract) = setup_contract();
-    contract.create_pool(accounts(0).to_string(), accounts(1).to_string());
+    contract.create_pool(accounts(0).to_string(), accounts(1).to_string(), 0.0);
     let pool = contract.get_pool(0).unwrap();
-    assert!(pool.tokens[0] == accounts(0).to_string());
-    assert!(pool.tokens[1] == accounts(1).to_string());
-    assert!(pool.liquidity[0] == 0);
-    assert!(pool.liquidity[1] == 0);
+    assert!(pool.token0 == accounts(0).to_string());
+    assert!(pool.token1 == accounts(1).to_string());
+    assert!(pool.token0_liquidity == 0);
+    assert!(pool.token1_liquidity == 0);
+    assert!(pool.positions == vec![]);
+    assert!(pool.sqrt_price == 0.0);
 }
 
 #[test]
-fn add_liquidity() {
+fn open_position() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string());
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 50.0);
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
         accounts(0),
         accounts(1),
-        U128(100000),
+        U128(2000),
     );
     let balance = contract
         .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
         .unwrap();
-    assert_eq!(balance, 100000);
+    assert_eq!(balance, 2000);
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(3000),
+    );
+    let balance = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert_eq!(balance, 3000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.add_liquidity(0, accounts(1).to_string(), 1000);
+    contract.open_position(0, 1000, 1000, 25, 100);
     let pool = contract.get_pool(0).unwrap();
-    assert!(pool.liquidity[0] == 1000);
-    assert!(pool.liquidity[1] == 0);
+    println!("pool.token0_liquidity == {}", pool.token0_liquidity);
+    println!("pool.token1_liquidity == {}", pool.token1_liquidity);
+    assert!(pool.token0_liquidity == 41);
+    assert!(pool.token1_liquidity == 2071);
     let balance = contract
         .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
         .unwrap();
-    assert_eq!(balance, 99000);
-    let share = pool.get_share(&accounts(0).to_string(), &accounts(1).to_string());
-    assert_eq!(share, 1000);
+    assert_eq!(balance, 1000);
+    let balance = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert_eq!(balance, 2000);
 }
 
+/*
 #[test]
 #[should_panic(expected = "You have not added liquidity to this pool")]
 fn test_remove_liquidity_without_depositing() {

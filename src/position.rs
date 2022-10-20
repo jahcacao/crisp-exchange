@@ -3,7 +3,7 @@ use near_sdk::{
     serde::Serialize,
 };
 
-#[derive(Clone, Serialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
     pub liquidity_constant: f64,     // L
@@ -34,7 +34,7 @@ impl Position {
         lower_bound_price: u128,
         upper_bound_price: u128,
     ) -> Position {
-        let liquidity_constant = (token0_liquidity * token1_liquidity) as f64;
+        let liquidity_constant = ((token0_liquidity as f64) * (token1_liquidity as f64)).sqrt();
         let sqrt_lower_bound_price = (lower_bound_price as f64).sqrt();
         let sqrt_upper_bound_price = (upper_bound_price as f64).sqrt();
         Position {
@@ -47,15 +47,16 @@ impl Position {
         }
     }
 
-    pub fn refresh(&mut self, price: f64) {
-        let sqrt_price = price.sqrt();
+    pub fn refresh(&mut self, sqrt_price: f64) {
         if sqrt_price > self.sqrt_upper_bound_price {
+            println!("too high");
             self.token0_real_liquidity = 0;
             self.token1_real_liquidity = (self.liquidity_constant
                 * (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price))
                 as u128;
             self.is_active = false;
-        } else if sqrt_price < self.sqrt_upper_bound_price {
+        } else if sqrt_price < self.sqrt_lower_bound_price {
+            println!("too low");
             self.token0_real_liquidity = (self.liquidity_constant
                 * (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price)
                 / (self.sqrt_upper_bound_price * self.sqrt_lower_bound_price))
@@ -63,6 +64,7 @@ impl Position {
             self.token1_real_liquidity = 0;
             self.is_active = false;
         } else {
+            println!("normal price");
             self.token0_real_liquidity =
                 (self.liquidity_constant * (self.sqrt_upper_bound_price - sqrt_price)
                     / (self.sqrt_upper_bound_price * sqrt_price)) as u128;

@@ -11,42 +11,47 @@ use crate::{errors::*, position::Position};
 pub struct Pool {
     pub token0: AccountId,
     pub token1: AccountId,
-    pub token_0_active_liquidity: u128,
-    pub token_1_active_liquidity: u128,
+    pub token0_liquidity: u128,
+    pub token1_liquidity: u128,
     pub positions: Vec<Position>,
     pub sqrt_price: f64,
 }
 
 impl Pool {
-    pub fn new(token0: AccountId, token1: AccountId) -> Pool {
+    pub fn new(token0: AccountId, token1: AccountId, price: f64) -> Pool {
         Pool {
             token0,
             token1,
-            token_0_active_liquidity: 0,
-            token_1_active_liquidity: 0,
+            token0_liquidity: 0,
+            token1_liquidity: 0,
             positions: vec![],
-            sqrt_price: 1.0,
+            sqrt_price: price.sqrt(),
         }
     }
 
     pub fn refresh_price(&mut self) {
-        self.sqrt_price =
-            (self.token_1_active_liquidity as f64 / self.token_0_active_liquidity as f64).sqrt();
+        if self.token0_liquidity != 0 && self.token1_liquidity != 0 {
+            self.sqrt_price = (self.token1_liquidity as f64 / self.token0_liquidity as f64).sqrt();
+        }
     }
 
-    pub fn refresh_pool(&mut self) {
+    pub fn refresh_liquidity(&mut self) {
         loop {
             let old_price = self.sqrt_price;
             self.refresh_price();
-            self.token_0_active_liquidity = 0;
-            self.token_1_active_liquidity = 0;
+            self.token0_liquidity = 0;
+            self.token1_liquidity = 0;
             for position in &mut self.positions {
+                println!("self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
                 position.refresh(self.sqrt_price);
-                self.token_0_active_liquidity += position.token0_real_liquidity;
-                self.token_1_active_liquidity += position.token1_real_liquidity;
+                println!("position.token0_real_liquidity = {}", position.token0_real_liquidity);
+                println!("position.token1_real_liquidity = {}", position.token1_real_liquidity);
+                self.token0_liquidity += position.token0_real_liquidity;
+                self.token1_liquidity += position.token1_real_liquidity;
             }
             self.refresh_price();
-            if old_price == self.sqrt_price {
+            println!("new self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
+            if (old_price - self.sqrt_price).abs() < 1.0 {
                 return;
             }
         }
@@ -54,18 +59,16 @@ impl Pool {
 
     pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> u128 {
         if token_in == &self.token0 {
-            return amount_in * self.token_1_active_liquidity
-                / (self.token_0_active_liquidity + amount_in);
+            return amount_in * self.token1_liquidity / (self.token0_liquidity + amount_in);
         } else if token_in == &self.token1 {
-            return amount_in * self.token_0_active_liquidity
-                / (self.token_1_active_liquidity + amount_in);
+            return amount_in * self.token0_liquidity / (self.token1_liquidity + amount_in);
         } else {
             panic!("{}", BAD_TOKEN);
         }
     }
 
     pub fn get_price(&self) -> f64 {
-        self.token_1_active_liquidity as f64 / self.token_0_active_liquidity as f64
+        self.token1_liquidity as f64 / self.token0_liquidity as f64
     }
 
     pub fn open_position(
@@ -82,21 +85,16 @@ impl Pool {
             upper_bound_price,
         );
         self.positions.push(position);
+        self.refresh_liquidity();
     }
 
-    pub fn swap(
-        &mut self,
-        token_in: AccountId,
-        token_out: AccountId,
-        amount_in: u128,
-        amount_out: u128,
-    ) {
+    pub fn swap(&mut self, token_in: AccountId, amount_in: u128, amount_out: u128) {
         if token_in == self.token0 {
-            self.token_0_active_liquidity += amount_in;
-            self.token_1_active_liquidity += amount_out;
+            self.token0_liquidity += amount_in;
+            self.token1_liquidity += amount_out;
         } else {
-            self.token_0_active_liquidity += amount_out;
-            self.token_1_active_liquidity += amount_in;
+            self.token0_liquidity += amount_out;
+            self.token1_liquidity += amount_in;
         }
     }
 }

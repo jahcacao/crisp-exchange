@@ -40,8 +40,13 @@ impl Contract {
     }
 
     #[private]
-    pub fn create_pool(&mut self, token1: AccountId, token2: AccountId) -> usize {
-        self.pools.push(Pool::new(token1, token2));
+    pub fn create_pool(
+        &mut self,
+        token1: AccountId,
+        token2: AccountId,
+        initial_price: f64,
+    ) -> usize {
+        self.pools.push(Pool::new(token1, token2, initial_price));
         return self.pools.len() - 1;
     }
 
@@ -84,13 +89,13 @@ impl Contract {
     }
 
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
-        assert!(pool_id < self.pools.len());
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
         pool.get_return(token_in, amount_in)
     }
 
     pub fn get_price(&self, pool_id: usize) -> f64 {
-        assert!(pool_id < self.pools.len());
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
         pool.get_price()
     }
@@ -99,19 +104,19 @@ impl Contract {
         &mut self,
         pool_id: usize,
         token_in: AccountId,
-        amount: u128,
+        amount_in: u128,
         token_out: AccountId,
     ) {
-        assert!(pool_id < self.pools.len());
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
-        pool.refresh_pool();
+        pool.refresh_liquidity();
         let account_id = env::predecessor_account_id();
         self.accounts
-            .decrease_balance(&account_id, &token_in, amount);
-        let amount_out = pool.get_return(&token_in, amount);
+            .decrease_balance(&account_id, &token_in, amount_in);
+        let amount_out = pool.get_return(&token_in, amount_in);
         self.accounts
             .increase_balance(&account_id, &token_out, amount_out);
-        pool.swap(token_in, token_out.to_string(), amount, amount_out);
+        pool.swap(token_in, amount_in, amount_out);
     }
 
     pub fn open_position(
@@ -122,8 +127,13 @@ impl Contract {
         lower_bound_price: u128,
         upper_bound_price: u128,
     ) {
-        assert!(pool_id < self.pools.len());
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
+        let account_id = env::predecessor_account_id();
+        self.accounts
+            .decrease_balance(&account_id, &pool.token0, token0_liquidity);
+        self.accounts
+            .decrease_balance(&account_id, &pool.token1, token1_liquidity);
         pool.open_position(
             token0_liquidity,
             token1_liquidity,
