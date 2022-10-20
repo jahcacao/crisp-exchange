@@ -41,7 +41,7 @@ impl Contract {
 
     #[private]
     pub fn create_pool(&mut self, token1: AccountId, token2: AccountId) -> usize {
-        self.pools.push(Pool::new(self.pools.len(), token1, token2));
+        self.pools.push(Pool::new(token1, token2));
         return self.pools.len() - 1;
     }
 
@@ -50,12 +50,11 @@ impl Contract {
     }
 
     pub fn get_pool(&self, pool_id: usize) -> Option<&Pool> {
-        for pool in &self.pools {
-            if pool_id == pool.id {
-                return Some(pool);
-            }
+        if pool_id >= self.pools.len() {
+            None
+        } else {
+            Some(&self.pools[pool_id])
         }
-        None
     }
 
     pub fn get_balance(&self, account_id: &AccountId, token: &AccountId) -> Option<u128> {
@@ -84,61 +83,53 @@ impl Contract {
         self.accounts.withdraw(account_id, token, amount);
     }
 
-    // pub fn add_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
-    //     assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
-    //     let account_id = env::predecessor_account_id();
-    //     self.accounts.decrease_balance(&account_id, &token, amount);
-    //     self.pools[pool_id as usize].add_liquidity(&account_id, &token, amount);
-    // }
-
-    // pub fn remove_liquidity(&mut self, pool_id: u8, token: AccountId, amount: u128) {
-    //     assert!(pool_id < self.pools.len() as u8, "{}", BAD_POOL_ID);
-    //     let account_id = env::predecessor_account_id();
-    //     self.accounts.increase_balance(&account_id, &token, amount);
-    //     self.pools[pool_id as usize].remove_liquidity(&account_id, &token, amount);
-    // }
-
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
         assert!(pool_id < self.pools.len());
         let pool = &self.pools[pool_id];
         pool.get_return(token_in, amount_in)
     }
 
-    pub fn get_price(&self, pool_id: usize, token_in: &AccountId) -> u128 {
-        self.get_return(pool_id, token_in, 1)
+    pub fn get_price(&self, pool_id: usize) -> f64 {
+        assert!(pool_id < self.pools.len());
+        let pool = &self.pools[pool_id];
+        pool.get_price()
     }
 
-    pub fn swap(&mut self, pool_id: usize, token_in: AccountId, amount: u128) {
+    pub fn swap(
+        &mut self,
+        pool_id: usize,
+        token_in: AccountId,
+        amount: u128,
+        token_out: AccountId,
+    ) {
         assert!(pool_id < self.pools.len());
+        let pool = &mut self.pools[pool_id];
+        pool.refresh_pool();
         let account_id = env::predecessor_account_id();
-        let other_index = self.pools[pool_id].get_other_index(&token_in);
         self.accounts
             .decrease_balance(&account_id, &token_in, amount);
-        let amount_out = self.get_return(pool_id, &token_in, amount);
-        let pool = &mut self.pools[pool_id];
-        let token_out = &pool.tokens[other_index].clone();
+        let amount_out = pool.get_return(&token_in, amount);
         self.accounts
             .increase_balance(&account_id, &token_out, amount_out);
-        pool.swap(
-            account_id,
-            token_in,
-            token_out.to_string(),
-            amount,
-            amount_out,
-        );
+        pool.swap(token_in, token_out.to_string(), amount, amount_out);
     }
 
     pub fn open_position(
         &mut self,
         pool_id: usize,
-        token_amount_1: (AccountId, u128),
-        token_amount_2: (AccountId, u128),
-        lower_price: u128,
-        upper_price: u128,
+        token0_liquidity: u128,
+        token1_liquidity: u128,
+        lower_bound_price: u128,
+        upper_bound_price: u128,
     ) {
         assert!(pool_id < self.pools.len());
         let pool = &mut self.pools[pool_id];
-        pool.open_position(token_amount_1, token_amount_2, lower_price, upper_price);
+        pool.open_position(
+            token0_liquidity,
+            token1_liquidity,
+            lower_bound_price,
+            upper_bound_price,
+        );
     }
 
     pub fn close_position(&mut self) {}
