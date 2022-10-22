@@ -36,25 +36,18 @@ impl Pool {
     }
 
     pub fn refresh_liquidity(&mut self) {
-        loop {
-            let old_price = self.sqrt_price;
-            self.refresh_price();
-            self.token0_liquidity = 0;
-            self.token1_liquidity = 0;
-            for position in &mut self.positions {
-                println!("self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
-                position.refresh(self.sqrt_price);
-                println!("position.token0_real_liquidity = {}", position.token0_real_liquidity);
-                println!("position.token1_real_liquidity = {}", position.token1_real_liquidity);
-                self.token0_liquidity += position.token0_real_liquidity;
-                self.token1_liquidity += position.token1_real_liquidity;
-            }
-            self.refresh_price();
-            println!("new self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
-            if (old_price - self.sqrt_price).abs() < 1.0 {
-                return;
-            }
+        self.token0_liquidity = 0;
+        self.token1_liquidity = 0;
+        println!("self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
+        for position in &mut self.positions {
+            position.refresh(self.sqrt_price);
+            println!("position.token0_real_liquidity = {}", position.token0_real_liquidity);
+            println!("position.token1_real_liquidity = {}", position.token1_real_liquidity);
+            self.token0_liquidity += position.token0_real_liquidity;
+            self.token1_liquidity += position.token1_real_liquidity;
         }
+        self.refresh_price();
+        println!("new self.sqrt_price = {}", self.sqrt_price * self.sqrt_price);
     }
 
     pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> u128 {

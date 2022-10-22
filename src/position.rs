@@ -6,7 +6,7 @@ use near_sdk::{
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
-    pub liquidity_constant: f64,     // L
+    pub liquidity: f64,     // L
     pub token0_real_liquidity: u128, // x
     pub token1_real_liquidity: u128, // y
     pub sqrt_lower_bound_price: f64, // p_a
@@ -17,7 +17,7 @@ pub struct Position {
 impl Default for Position {
     fn default() -> Self {
         Position {
-            liquidity_constant: 0.0,
+            liquidity: 0.0,
             token0_real_liquidity: 0,
             token1_real_liquidity: 0,
             sqrt_lower_bound_price: 0.0,
@@ -34,11 +34,11 @@ impl Position {
         lower_bound_price: u128,
         upper_bound_price: u128,
     ) -> Position {
-        let liquidity_constant = ((token0_liquidity as f64) * (token1_liquidity as f64)).sqrt();
+        let liquidity = ((token0_liquidity as f64) * (token1_liquidity as f64)).sqrt();
         let sqrt_lower_bound_price = (lower_bound_price as f64).sqrt();
         let sqrt_upper_bound_price = (upper_bound_price as f64).sqrt();
         Position {
-            liquidity_constant,
+            liquidity,
             token0_real_liquidity: 0,
             token1_real_liquidity: 0,
             sqrt_lower_bound_price,
@@ -51,13 +51,13 @@ impl Position {
         if sqrt_price > self.sqrt_upper_bound_price {
             println!("too high");
             self.token0_real_liquidity = 0;
-            self.token1_real_liquidity = (self.liquidity_constant
+            self.token1_real_liquidity = (self.liquidity
                 * (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price))
                 as u128;
             self.is_active = false;
         } else if sqrt_price < self.sqrt_lower_bound_price {
             println!("too low");
-            self.token0_real_liquidity = (self.liquidity_constant
+            self.token0_real_liquidity = (self.liquidity
                 * (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price)
                 / (self.sqrt_upper_bound_price * self.sqrt_lower_bound_price))
                 as u128;
@@ -66,10 +66,10 @@ impl Position {
         } else {
             println!("normal price");
             self.token0_real_liquidity =
-                (self.liquidity_constant * (self.sqrt_upper_bound_price - sqrt_price)
+                (self.liquidity * (self.sqrt_upper_bound_price - sqrt_price)
                     / (self.sqrt_upper_bound_price * sqrt_price)) as u128;
             self.token1_real_liquidity =
-                (self.liquidity_constant * (sqrt_price - self.sqrt_lower_bound_price)) as u128;
+                (self.liquidity * (sqrt_price - self.sqrt_lower_bound_price)) as u128;
             self.is_active = true;
         }
     }
