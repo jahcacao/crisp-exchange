@@ -46,6 +46,15 @@ impl Pool {
         self.sqrt_price
     }
 
+    pub fn refresh_liquidity(&mut self) {
+        self.liquidity = 0.0;
+        for position in &self.positions {
+            if position.sqrt_lower_bound_price <= self.sqrt_price && position.sqrt_upper_bound_price >= self.sqrt_price {
+                self.liquidity += position.liquidity;
+            }
+        }
+    }
+
     pub fn open_position(&mut self, position: Position) {
         if position.sqrt_lower_bound_price <= self.sqrt_price
             && position.sqrt_upper_bound_price >= self.sqrt_price

@@ -170,31 +170,6 @@ mod test {
     #[test]
     fn open_position() {
         let position = Position::new(Some(50), None, 25.0, 121.0, 10.0);
-        // println!(
-        //     "position.token0_real_liquidity = {}",
-        //     position.token0_real_liquidity
-        // );
-        // println!(
-        //     "position.token1_real_liquidity = {}",
-        //     position.token1_real_liquidity
-        // );
-        // println!("position.liquidity = {}", position.liquidity);
-        // println!(
-        //     "position.sqrt_lower_bound_price = {}",
-        //     position.sqrt_lower_bound_price
-        // );
-        // println!(
-        //     "position.sqrt_upper_bound_price = {}",
-        //     position.sqrt_upper_bound_price
-        // );
-        // println!(
-        //     "position.tick_lower_bound_price = {}",
-        //     position.tick_lower_bound_price
-        // );
-        // println!(
-        //     "position.tick_upper_bound_price = {}",
-        //     position.tick_upper_bound_price
-        // );
         assert!(position.token0_real_liquidity.floor() == 50.0);
         assert!(position.token1_real_liquidity.floor() == 2291.0);
         assert!(position.liquidity.floor() == 458.0);
@@ -207,31 +182,6 @@ mod test {
     #[test]
     fn open_position_less_than_lower_bound() {
         let position = Position::new(Some(50), None, 121.0, 144.0, 10.0);
-        // println!(
-        //     "position.token0_real_liquidity = {}",
-        //     position.token0_real_liquidity
-        // );
-        // println!(
-        //     "position.token1_real_liquidity = {}",
-        //     position.token1_real_liquidity
-        // );
-        // println!("position.liquidity = {}", position.liquidity);
-        // println!(
-        //     "position.sqrt_lower_bound_price = {}",
-        //     position.sqrt_lower_bound_price
-        // );
-        // println!(
-        //     "position.sqrt_upper_bound_price = {}",
-        //     position.sqrt_upper_bound_price
-        // );
-        // println!(
-        //     "position.tick_lower_bound_price = {}",
-        //     position.tick_lower_bound_price
-        // );
-        // println!(
-        //     "position.tick_upper_bound_price = {}",
-        //     position.tick_upper_bound_price
-        // );
         assert!(position.token0_real_liquidity == 50.0);
         assert!(position.token1_real_liquidity == 0.0);
         assert!(position.liquidity == 6600.0);
@@ -244,31 +194,6 @@ mod test {
     #[test]
     fn open_position_more_than_upper_bound() {
         let position = Position::new(None, Some(50), 121.0, 144.0, 13.0);
-        // println!(
-        //     ">> position.token0_real_liquidity = {}",
-        //     position.token0_real_liquidity
-        // );
-        // println!(
-        //     ">> position.token1_real_liquidity = {}",
-        //     position.token1_real_liquidity
-        // );
-        // println!(">> position.liquidity = {}", position.liquidity);
-        // println!(
-        //     ">> position.sqrt_lower_bound_price = {}",
-        //     position.sqrt_lower_bound_price
-        // );
-        // println!(
-        //     ">> position.sqrt_upper_bound_price = {}",
-        //     position.sqrt_upper_bound_price
-        // );
-        // println!(
-        //     ">> position.tick_lower_bound_price = {}",
-        //     position.tick_lower_bound_price
-        // );
-        // println!(
-        //     ">> position.tick_upper_bound_price = {}",
-        //     position.tick_upper_bound_price
-        // );
         assert!(position.token0_real_liquidity == 0.0);
         assert!(position.token1_real_liquidity == 50.0);
         assert!(position.liquidity == 50.0);
