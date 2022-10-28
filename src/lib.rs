@@ -6,12 +6,14 @@ use near_sdk::{AccountId, PanicOnDefault};
 use pool::Pool;
 
 use crate::errors::*;
+use crate::position::Position;
 
 mod balance;
 mod errors;
 mod fees;
 mod pool;
 mod position;
+mod tick;
 mod token_receiver;
 
 #[near_bindgen]
@@ -97,7 +99,8 @@ impl Contract {
     pub fn get_price(&self, pool_id: usize) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
-        pool.get_price()
+        let sqrt_price = pool.get_sqrt_price();
+        sqrt_price * sqrt_price
     }
 
     pub fn swap(
@@ -109,7 +112,6 @@ impl Contract {
     ) {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
-        pool.refresh_liquidity();
         let account_id = env::predecessor_account_id();
         self.accounts
             .decrease_balance(&account_id, &token_in, amount_in);
@@ -122,24 +124,32 @@ impl Contract {
     pub fn open_position(
         &mut self,
         pool_id: usize,
-        token0_liquidity: u128,
-        token1_liquidity: u128,
-        lower_bound_price: u128,
-        upper_bound_price: u128,
+        token0_liquidity: Option<u128>,
+        token1_liquidity: Option<u128>,
+        lower_bound_price: f64,
+        upper_bound_price: f64,
     ) {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        self.accounts
-            .decrease_balance(&account_id, &pool.token0, token0_liquidity);
-        self.accounts
-            .decrease_balance(&account_id, &pool.token1, token1_liquidity);
-        pool.open_position(
+        let position = Position::new(
             token0_liquidity,
             token1_liquidity,
             lower_bound_price,
             upper_bound_price,
+            pool.sqrt_price,
         );
+        self.accounts.decrease_balance(
+            &account_id,
+            &pool.token0,
+            position.token0_real_liquidity as u128,
+        );
+        self.accounts.decrease_balance(
+            &account_id,
+            &pool.token1,
+            position.token1_real_liquidity as u128,
+        );
+        pool.open_position(position);
     }
 
     pub fn close_position(&mut self) {}
