@@ -224,7 +224,7 @@ fn open_three_positions() {
         .unwrap();
     assert_eq!(balance, 30000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.open_position(0, None, Some(50), 64.0, 121.0);  // 16.66
+    contract.open_position(0, None, Some(50), 64.0, 121.0); // 16.66
     contract.open_position(0, Some(100), None, 49.0, 144.0); // 1680
     contract.open_position(0, None, Some(150), 81.0, 169.0); // 37.5
     let pool = contract.get_pool(0).unwrap();
@@ -263,15 +263,15 @@ fn open_ten_positions() {
         .unwrap();
     assert_eq!(balance, 30000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.open_position(0, None, Some(50), 64.0, 121.0);  // 16.6
+    contract.open_position(0, None, Some(50), 64.0, 121.0); // 16.6
     contract.open_position(0, Some(100), None, 49.0, 144.0); // 1680
     contract.open_position(0, None, Some(150), 81.0, 169.0); // 37.5
     contract.open_position(0, Some(200), None, 110.0, 121.0);
     contract.open_position(0, None, Some(250), 49.0, 99.0);
     contract.open_position(0, Some(300), None, 149.0, 154.0);
     contract.open_position(0, None, Some(350), 81.0, 99.0);
-    contract.open_position(0, Some(100), None, 49.0, 144.0);  // 1680
-    contract.open_position(0, None, Some(50), 64.0, 121.0);   // 16.6
+    contract.open_position(0, Some(100), None, 49.0, 144.0); // 1680
+    contract.open_position(0, None, Some(50), 64.0, 121.0); // 16.6
     contract.open_position(0, Some(500), None, 120.0, 130.0);
     let pool = contract.get_pool(0).unwrap();
     assert!(pool.liquidity.floor() == 3430.0);
