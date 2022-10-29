@@ -68,5 +68,15 @@ impl Pool {
         // TO DO
     }
 
+    pub fn close_position(&mut self, id: usize) {
+        let position = &self.positions[id];
+        if position.sqrt_lower_bound_price <= self.sqrt_price
+            && position.sqrt_upper_bound_price >= self.sqrt_price
+        {
+            self.liquidity -= position.liquidity;
+        }
+        self.positions.remove(id);
+    }
+
     pub fn swap(&mut self, token_in: AccountId, amount_in: u128, amount_out: u128) {}
 }

@@ -128,11 +128,17 @@ impl Contract {
         token1_liquidity: Option<u128>,
         lower_bound_price: f64,
         upper_bound_price: f64,
-    ) {
+    ) -> u128 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let id = match pool.positions.len() > 0 {
+            true => pool.positions[pool.positions.len() - 1].id + 1,
+            _ => 0,
+        };
         let position = Position::new(
+            id,
+            account_id.clone(),
             token0_liquidity,
             token1_liquidity,
             lower_bound_price,
@@ -150,9 +156,27 @@ impl Contract {
             position.token1_real_liquidity as u128,
         );
         pool.open_position(position);
+        return id;
     }
 
-    pub fn close_position(&mut self) {}
+    pub fn close_position(&mut self, pool_id: usize, id: u128) -> bool {
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        let pool = &mut self.pools[pool_id];
+        let account_id = env::predecessor_account_id();
+        for (i, position) in pool.positions.iter().enumerate() {
+            if position.id == id && position.owner_id == account_id {
+                let token0 = &pool.token0;
+                let token1 = &pool.token1;
+                let amount0 = position.token0_real_liquidity as u128;
+                let amount1 = position.token1_real_liquidity as u128;
+                self.accounts.increase_balance(&account_id, token0, amount0);
+                self.accounts.increase_balance(&account_id, token1, amount1);
+                pool.close_position(i);
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 // open order for concentrated liquidity

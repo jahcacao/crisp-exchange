@@ -1,11 +1,14 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     serde::Serialize,
+    AccountId,
 };
 
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
+    pub id: u128,
+    pub owner_id: AccountId,
     pub liquidity: f64,             // L
     pub token0_real_liquidity: f64, // x
     pub token1_real_liquidity: f64, // y
@@ -19,6 +22,8 @@ pub struct Position {
 impl Default for Position {
     fn default() -> Self {
         Position {
+            id: 0,
+            owner_id: String::new(),
             liquidity: 0.0,
             token0_real_liquidity: 0.0,
             token1_real_liquidity: 0.0,
@@ -33,6 +38,8 @@ impl Default for Position {
 
 impl Position {
     pub fn new(
+        id: u128,
+        owner_id: AccountId,
         token0_liquidity: Option<u128>,
         token1_liquidity: Option<u128>,
         lower_bound_price: f64,
@@ -78,6 +85,8 @@ impl Position {
         let sqrt_lower_bound_price = base.powf((tick_lower_bound_price / 2) as f64);
         let sqrt_upper_bound_price = base.powf((tick_upper_bound_price / 2) as f64);
         Position {
+            id,
+            owner_id,
             liquidity,
             token0_real_liquidity: x,
             token1_real_liquidity: y,
@@ -169,7 +178,9 @@ mod test {
     use crate::*;
     #[test]
     fn open_position() {
-        let position = Position::new(Some(50), None, 25.0, 121.0, 10.0);
+        let position = Position::new(0, String::new(), Some(50), None, 25.0, 121.0, 10.0);
+        assert!(position.id == 0);
+        assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity.floor() == 50.0);
         assert!(position.token1_real_liquidity.floor() == 2291.0);
         assert!(position.liquidity.floor() == 458.0);
@@ -181,7 +192,9 @@ mod test {
 
     #[test]
     fn open_position_less_than_lower_bound() {
-        let position = Position::new(Some(50), None, 121.0, 144.0, 10.0);
+        let position = Position::new(0, String::new(), Some(50), None, 121.0, 144.0, 10.0);
+        assert!(position.id == 0);
+        assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity == 50.0);
         assert!(position.token1_real_liquidity == 0.0);
         assert!(position.liquidity == 6600.0);
@@ -193,7 +206,9 @@ mod test {
 
     #[test]
     fn open_position_more_than_upper_bound() {
-        let position = Position::new(None, Some(50), 121.0, 144.0, 13.0);
+        let position = Position::new(0, String::new(), None, Some(50), 121.0, 144.0, 13.0);
+        assert!(position.id == 0);
+        assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity == 0.0);
         assert!(position.token1_real_liquidity == 50.0);
         assert!(position.liquidity == 50.0);
@@ -206,12 +221,12 @@ mod test {
     #[should_panic(expected = "Wrong token amount chosen")]
     #[test]
     fn open_position_less_than_lower_bound_wrong_token() {
-        let _position = Position::new(Some(50), None, 121.0, 144.0, 13.0);
+        let _position = Position::new(0, String::new(), Some(50), None, 121.0, 144.0, 13.0);
     }
 
     #[should_panic(expected = "Wrong token amount chosen")]
     #[test]
     fn open_position_more_than_upper_bound_wrong_token() {
-        let _position = Position::new(None, Some(50), 121.0, 144.0, 10.0);
+        let _position = Position::new(0, String::new(), None, Some(50), 121.0, 144.0, 10.0);
     }
 }
