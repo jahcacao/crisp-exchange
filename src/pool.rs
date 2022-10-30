@@ -42,6 +42,50 @@ impl Pool {
         0
     }
 
+    pub fn get_expense(&self, token_out: &AccountId, amount_out: u128) -> f64 {
+        if self.check_swap_within_tick_is_possible(token_out, amount_out) {
+            // whithin a single tick
+            return self.get_expense_within_tick(token_out, amount_out);
+        } else { // crossing several ticks
+        }
+
+        0.0
+    }
+
+    pub fn get_expense_within_tick(&self, token_out: &AccountId, amount_out: u128) -> f64 {
+        if token_out == &self.token0 {
+            let delta_sqrt_price = amount_out as f64 / self.liquidity;
+            let new_sqrt_price = self.sqrt_price + delta_sqrt_price;
+            return (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * self.liquidity;
+        } else {
+            let delta_reversed_sqrt_price = (amount_out as f64) / self.liquidity;
+            let new_sqrt_price =
+                self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
+            return (new_sqrt_price - self.sqrt_price) * self.liquidity;
+        }
+    }
+
+    pub fn check_swap_within_tick_is_possible(
+        &self,
+        token_out: &AccountId,
+        amount_out: u128,
+    ) -> bool {
+        let new_sqrt_price;
+        if token_out == &self.token0 {
+            let delta_sqrt_price = amount_out as f64 / self.liquidity;
+            new_sqrt_price = self.sqrt_price + delta_sqrt_price;
+        } else {
+            let delta_reversed_sqrt_price = (amount_out as f64) / self.liquidity;
+            new_sqrt_price = self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
+        }
+        let new_tick = sqrt_price_to_tick(new_sqrt_price);
+        if new_tick == self.tick {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     pub fn get_sqrt_price(&self) -> f64 {
         self.sqrt_price
     }
