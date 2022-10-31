@@ -96,6 +96,13 @@ impl Contract {
         pool.get_return(token_in, amount_in)
     }
 
+    pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: u128) -> f64 {
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        let pool = &self.pools[pool_id];
+        let swap_result = pool.get_expense(token_out, amount_out);
+        swap_result.amount_in
+    }
+
     pub fn get_price(&self, pool_id: usize) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];

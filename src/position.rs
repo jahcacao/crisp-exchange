@@ -58,7 +58,7 @@ impl Position {
                 "Wrong token amount chosen"
             );
             x = token0_liquidity.unwrap() as f64;
-            liquidity = get_liquidity_0(x, sqrt_lower_bound_price, sqrt_upper_bound_price);
+            liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
             y = calculate_y(
                 liquidity,
                 sqrt_price,
@@ -71,7 +71,7 @@ impl Position {
                 "Wrong token amount chosen"
             );
             y = token1_liquidity.unwrap() as f64;
-            liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_upper_bound_price);
+            liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
             x = calculate_x(
                 liquidity,
                 sqrt_price,
@@ -182,8 +182,8 @@ mod test {
         assert!(position.id == 0);
         assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity.floor() == 50.0);
-        assert!(position.token1_real_liquidity.floor() == 2291.0);
-        assert!(position.liquidity.floor() == 458.0);
+        assert!(position.token1_real_liquidity == 27500.0);
+        assert!(position.liquidity == 5500.0);
         assert!(position.tick_lower_bound_price == 32190);
         assert!(position.tick_upper_bound_price == 47960);
         assert!(position.sqrt_lower_bound_price == 4.999908090496346);
@@ -197,7 +197,7 @@ mod test {
         assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity == 50.0);
         assert!(position.token1_real_liquidity == 0.0);
-        assert!(position.liquidity == 6600.0);
+        assert!(position.liquidity == 3000.0);
         assert!(position.tick_lower_bound_price == 47960);
         assert!(position.tick_upper_bound_price == 49700);
         assert!(position.sqrt_lower_bound_price == 10.999833188399927);
@@ -211,7 +211,7 @@ mod test {
         assert!(position.owner_id == String::new());
         assert!(position.token0_real_liquidity == 0.0);
         assert!(position.token1_real_liquidity == 50.0);
-        assert!(position.liquidity == 50.0);
+        assert!(position.liquidity == 25.0);
         assert!(position.tick_lower_bound_price == 47960);
         assert!(position.tick_upper_bound_price == 49700);
         assert!(position.sqrt_lower_bound_price == 10.999833188399927);

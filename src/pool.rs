@@ -7,9 +7,15 @@ use near_sdk::{
 };
 
 use crate::{
-    position::{sqrt_price_to_tick, Position},
+    position::{sqrt_price_to_tick, tick_to_price, Position},
     tick::Tick,
 };
+
+pub struct SwapResult {
+    pub amount_in: f64,
+    pub new_liquidity: f64,
+    pub new_sqrt_price: f64,
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -42,26 +48,108 @@ impl Pool {
         0
     }
 
-    pub fn get_expense(&self, token_out: &AccountId, amount_out: u128) -> f64 {
+    pub fn get_expense(&self, token_out: &AccountId, amount_out: u128) -> SwapResult {
         if self.check_swap_within_tick_is_possible(token_out, amount_out) {
             // whithin a single tick
+            println!("Swap within a single ticks");
             return self.get_expense_within_tick(token_out, amount_out);
-        } else { // crossing several ticks
+        } else {
+            // crossing several ticks
+            println!("Swap crossing several ticks");
+            return self.get_expense_crossing_several_ticks(token_out, amount_out);
         }
-
-        0.0
     }
 
-    pub fn get_expense_within_tick(&self, token_out: &AccountId, amount_out: u128) -> f64 {
-        if token_out == &self.token0 {
+    fn get_expense_within_tick(&self, token_out: &AccountId, amount_out: u128) -> SwapResult {
+        let new_sqrt_price;
+        let amount_in;
+        if token_out == &self.token1 {
             let delta_sqrt_price = amount_out as f64 / self.liquidity;
-            let new_sqrt_price = self.sqrt_price + delta_sqrt_price;
-            return (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * self.liquidity;
+            new_sqrt_price = self.sqrt_price + delta_sqrt_price;
+            amount_in = (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * self.liquidity;
         } else {
             let delta_reversed_sqrt_price = (amount_out as f64) / self.liquidity;
-            let new_sqrt_price =
-                self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
-            return (new_sqrt_price - self.sqrt_price) * self.liquidity;
+            new_sqrt_price = self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
+            amount_in = (new_sqrt_price - self.sqrt_price) * self.liquidity;
+        }
+        return SwapResult {
+            amount_in: -amount_in,
+            new_liquidity: self.liquidity,
+            new_sqrt_price,
+        };
+    }
+
+    fn calculate_liquidity(&self, sqrt_price: f64) -> f64 {
+        let mut liquidity = 0.0;
+        for position in &self.positions {
+            if position.sqrt_lower_bound_price <= sqrt_price
+                && sqrt_price <= position.sqrt_upper_bound_price
+            {
+                liquidity += position.liquidity;
+            }
+        }
+        liquidity
+    }
+
+    fn get_amount_within_tick(
+        &self,
+        tick: &mut i32,
+        sqrt_price: &mut f64,
+        token_out: &AccountId,
+        remaining: &mut f64,
+    ) -> f64 {
+        let liquidity = self.calculate_liquidity(*sqrt_price);
+        if token_out == &self.token1 {
+            let mut new_sqrt_price = tick_to_price(*tick + 1);
+            let mut amount_in = (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * liquidity;
+            let amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
+            *sqrt_price = new_sqrt_price;
+            if amount_out > *remaining {
+                let delta_sqrt_price = *remaining / liquidity;
+                new_sqrt_price = self.sqrt_price + delta_sqrt_price;
+                amount_in = (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * liquidity;
+                *remaining = 0.0;
+            } else {
+                *remaining -= amount_out;
+            }
+            return -amount_in;
+        } else {
+            let mut new_sqrt_price = tick_to_price(*tick - 1);
+            let mut amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
+            let amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
+            *sqrt_price = new_sqrt_price;
+            *remaining -= amount_out;
+            if amount_out > *remaining {
+                let delta_reversed_sqrt_price = *remaining / liquidity;
+                new_sqrt_price =
+                    self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
+                amount_in = (new_sqrt_price - self.sqrt_price) * liquidity;
+                *remaining = 0.0;
+            } else {
+                *remaining -= amount_out;
+            }
+            return -amount_in;
+        }
+    }
+
+    fn get_expense_crossing_several_ticks(
+        &self,
+        token_out: &AccountId,
+        amount_out: u128,
+    ) -> SwapResult {
+        let mut collected = 0.0;
+        let mut tick = self.tick;
+        let mut price = self.sqrt_price;
+        let mut remaining = amount_out as f64;
+        while remaining > 0.0 {
+            collected +=
+                self.get_amount_within_tick(&mut tick, &mut price, token_out, &mut remaining)
+        }
+        let liquidity = self.calculate_liquidity(price);
+        SwapResult {
+            amount_in: collected,
+            new_liquidity: liquidity,
+            new_sqrt_price: price,
         }
     }
 
@@ -79,6 +167,11 @@ impl Pool {
             new_sqrt_price = self.sqrt_price / (delta_reversed_sqrt_price * self.sqrt_price + 1.0);
         }
         let new_tick = sqrt_price_to_tick(new_sqrt_price);
+        println!(
+            "old price = {} new price = {}",
+            self.sqrt_price, new_sqrt_price
+        );
+        println!("old tick = {} new_tick = {}", self.tick, new_tick);
         if new_tick == self.tick {
             return true;
         } else {
