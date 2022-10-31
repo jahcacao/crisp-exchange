@@ -97,6 +97,21 @@ impl Position {
             is_active: false,
         }
     }
+
+    pub fn refresh(&mut self, sqrt_price: f64) {
+        self.token0_real_liquidity = calculate_x(
+            self.liquidity,
+            sqrt_price,
+            self.sqrt_lower_bound_price,
+            self.sqrt_upper_bound_price,
+        );
+        self.token1_real_liquidity = calculate_y(
+            self.liquidity,
+            sqrt_price,
+            self.sqrt_lower_bound_price,
+            self.sqrt_upper_bound_price,
+        );
+    }
 }
 
 fn min(first: f64, second: f64) -> f64 {
@@ -123,7 +138,7 @@ pub fn get_liquidity_1(y: f64, sa: f64, sb: f64) -> f64 {
     y / (sb - sa)
 }
 
-pub fn get_liquidity(x: f64, y: f64, sp: f64, sa: f64, sb: f64) -> f64 {
+pub fn _get_liquidity(x: f64, y: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     let liquidity;
     if sp <= sa {
         liquidity = get_liquidity_0(x, sa, sb);
@@ -137,32 +152,32 @@ pub fn get_liquidity(x: f64, y: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     liquidity
 }
 
-pub fn calculate_x(L: f64, sp: f64, sa: f64, sb: f64) -> f64 {
+pub fn calculate_x(l: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     let sp = max(min(sp, sb), sa);
-    L * (sb - sp) / (sp * sb)
+    l * (sb - sp) / (sp * sb)
 }
 
-pub fn calculate_y(L: f64, sp: f64, sa: f64, sb: f64) -> f64 {
+pub fn calculate_y(l: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     let sp = max(min(sp, sb), sa);
-    L * (sp - sa)
+    l * (sp - sa)
 }
 
-pub fn calculate_a1(L: f64, sp: f64, sb: f64, x: f64, y: f64) -> f64 {
-    (sp - y / L).powf(2.0)
+pub fn _calculate_a1(l: f64, sp: f64, _sb: f64, _x: f64, y: f64) -> f64 {
+    (sp - y / l).powf(2.0)
 }
 
-pub fn calculate_a2(sp: f64, sb: f64, x: f64, y: f64) -> f64 {
+pub fn _calculate_a2(sp: f64, sb: f64, x: f64, y: f64) -> f64 {
     let sa = y / (sb * x) + sp - y / (sp * x);
     sa.powf(2.0)
 }
 
-pub fn calculate_b1(L: f64, sp: f64, sa: f64, x: f64, y: f64) -> f64 {
-    ((L * sp) / (L - sp * x)).powf(2.0)
+pub fn _calculate_b1(l: f64, sp: f64, _sa: f64, x: f64, _y: f64) -> f64 {
+    ((l * sp) / (l - sp * x)).powf(2.0)
 }
 
-pub fn calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
-    let P = sp.powf(2.0);
-    (sp * y / ((sa * sp - P) * x + y)).powf(2.0)
+pub fn _calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
+    let p = sp.powf(2.0);
+    (sp * y / ((sa * sp - p) * x + y)).powf(2.0)
 }
 
 pub fn tick_to_price(tick: i32) -> f64 {

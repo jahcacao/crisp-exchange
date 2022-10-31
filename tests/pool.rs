@@ -368,14 +368,6 @@ fn close_two_position() {
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
     assert!(pool.positions.len() == 0);
-    let balance = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    assert_eq!(balance, 2000000);
-    let balance = contract
-        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
-        .unwrap();
-    assert_eq!(balance, 3000000);
 }
 
 #[test]

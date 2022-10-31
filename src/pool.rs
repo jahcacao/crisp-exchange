@@ -43,18 +43,16 @@ impl Pool {
         }
     }
 
-    pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> u128 {
+    pub fn get_return(&self, _token_in: &AccountId, _amount_in: u128) -> u128 {
         // TO DO
         0
     }
 
     pub fn get_expense(&self, token_out: &AccountId, amount_out: u128) -> SwapResult {
         if self.check_swap_within_tick_is_possible(token_out, amount_out) {
-            // whithin a single tick
             println!("Swap within a single ticks");
             return self.get_expense_within_tick(token_out, amount_out);
         } else {
-            // crossing several ticks
             println!("Swap crossing several ticks");
             return self.get_expense_crossing_several_ticks(token_out, amount_out);
         }
@@ -79,7 +77,7 @@ impl Pool {
         };
     }
 
-    fn calculate_liquidity(&self, sqrt_price: f64) -> f64 {
+    fn calculate_liquidity_within_tick(&self, sqrt_price: f64) -> f64 {
         let mut liquidity = 0.0;
         for position in &self.positions {
             if position.sqrt_lower_bound_price <= sqrt_price
@@ -98,9 +96,10 @@ impl Pool {
         token_out: &AccountId,
         remaining: &mut f64,
     ) -> f64 {
-        let liquidity = self.calculate_liquidity(*sqrt_price);
+        let liquidity = self.calculate_liquidity_within_tick(*sqrt_price);
         if token_out == &self.token1 {
-            let mut new_sqrt_price = tick_to_price(*tick + 1);
+            *tick += 1;
+            let mut new_sqrt_price = tick_to_price(*tick);
             let mut amount_in = (1.0 / new_sqrt_price - 1.0 / self.sqrt_price) * liquidity;
             let amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
             *sqrt_price = new_sqrt_price;
@@ -114,7 +113,8 @@ impl Pool {
             }
             return -amount_in;
         } else {
-            let mut new_sqrt_price = tick_to_price(*tick - 1);
+            *tick -= 1;
+            let mut new_sqrt_price = tick_to_price(*tick);
             let mut amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
             let amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
             *sqrt_price = new_sqrt_price;
@@ -145,7 +145,7 @@ impl Pool {
             collected +=
                 self.get_amount_within_tick(&mut tick, &mut price, token_out, &mut remaining)
         }
-        let liquidity = self.calculate_liquidity(price);
+        let liquidity = self.calculate_liquidity_within_tick(price);
         SwapResult {
             amount_in: collected,
             new_liquidity: liquidity,
@@ -215,5 +215,8 @@ impl Pool {
         self.positions.remove(id);
     }
 
-    pub fn swap(&mut self, token_in: AccountId, amount_in: u128, amount_out: u128) {}
+    pub fn swap(&mut self, swap_result: SwapResult) {
+        self.liquidity = swap_result.new_liquidity;
+        self.sqrt_price = swap_result.new_sqrt_price;
+    }
 }

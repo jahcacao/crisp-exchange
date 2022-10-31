@@ -114,18 +114,18 @@ impl Contract {
         &mut self,
         pool_id: usize,
         token_in: AccountId,
-        amount_in: u128,
+        amount_out: u128,
         token_out: AccountId,
     ) {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         self.accounts
-            .decrease_balance(&account_id, &token_in, amount_in);
-        let amount_out = pool.get_return(&token_in, amount_in);
+            .increase_balance(&account_id, &token_in, amount_out);
+        let swap_result = pool.get_expense(&token_out, amount_out);
         self.accounts
-            .increase_balance(&account_id, &token_out, amount_out);
-        pool.swap(token_in, amount_in, amount_out);
+            .decrease_balance(&account_id, &token_out, swap_result.amount_in as u128);
+        pool.swap(swap_result);
     }
 
     pub fn open_position(
@@ -170,10 +170,12 @@ impl Contract {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        for (i, position) in pool.positions.iter().enumerate() {
+        for (i, position) in &mut pool.positions.iter().enumerate() {
             if position.id == id && position.owner_id == account_id {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
+                let mut position = position.clone();
+                position.refresh(pool.sqrt_price);
                 let amount0 = position.token0_real_liquidity as u128;
                 let amount1 = position.token1_real_liquidity as u128;
                 self.accounts.increase_balance(&account_id, token0, amount0);
