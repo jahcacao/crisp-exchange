@@ -371,7 +371,7 @@ fn close_two_position() {
 }
 
 #[test]
-fn get_expense_within_single_tick() {
+fn get_expense() {
     let (mut context, mut contract) = setup_contract();
     contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
     testing_env!(context.predecessor_account_id(accounts(1)).build());
@@ -400,17 +400,8 @@ fn get_expense_within_single_tick() {
     assert_eq!(balance, 30000000000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(10000000), None, 81.0, 121.0);
-    let pool = &contract.get_pool(0).unwrap();
-    let position = &pool.positions[0];
-    println!(
-        "position: token0 = {} token1 = {}",
-        position.token0_real_liquidity, position.token1_real_liquidity
-    );
-    println!("pool liquidity = {}", pool.liquidity);
     let exp1 = contract.get_expense(0, &accounts(1).to_string(), 1);
-    let exp2 = contract.get_expense(0, &accounts(2).to_string(), 10);
-    println!("token0 amount 100 = {}\n", exp1);
-    println!("token1 amount 100 = {}\n", exp2);
-    assert!(exp1 == 99.99999903698154); // new price =  exp1 =
-    assert!(exp2 == 0.10000000966181588); // new price =  exp2 =
+    let exp2 = contract.get_expense(0, &accounts(2).to_string(), 1);
+    assert!(exp1.floor() == 100.0);
+    assert!(exp2.floor() == 0.0);
 }

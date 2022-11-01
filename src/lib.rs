@@ -90,17 +90,18 @@ impl Contract {
         self.accounts.withdraw(account_id, token, amount);
     }
 
-    pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> u128 {
+    pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
-        pool.get_return(token_in, amount_in)
+        let swap_result = pool.get_return(token_in, amount_in);
+        swap_result.amount
     }
 
     pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: u128) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
         let swap_result = pool.get_expense(token_out, amount_out);
-        swap_result.amount_in
+        swap_result.amount
     }
 
     pub fn get_price(&self, pool_id: usize) -> f64 {
@@ -124,7 +125,7 @@ impl Contract {
             .increase_balance(&account_id, &token_in, amount_out);
         let swap_result = pool.get_expense(&token_out, amount_out);
         self.accounts
-            .decrease_balance(&account_id, &token_out, swap_result.amount_in as u128);
+            .decrease_balance(&account_id, &token_out, swap_result.amount as u128);
         pool.swap(swap_result);
     }
 

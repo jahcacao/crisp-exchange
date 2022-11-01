@@ -180,8 +180,8 @@ pub fn _calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
     (sp * y / ((sa * sp - p) * x + y)).powf(2.0)
 }
 
-pub fn tick_to_price(tick: i32) -> f64 {
-    (1.0001_f64).powf(tick as f64)
+pub fn tick_to_sqrt_price(tick: i32) -> f64 {
+    (1.0001_f64).powf(tick as f64 / 2.0)
 }
 
 pub fn sqrt_price_to_tick(sqrt_price: f64) -> i32 {
