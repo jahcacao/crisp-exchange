@@ -203,3 +203,4 @@ impl Contract {
 // tests for fees
 // tests for rewards
 // front
+// decimals

@@ -17,6 +17,7 @@ pub struct SwapResult {
     pub new_sqrt_price: f64,
 }
 
+#[derive(Clone, Copy, PartialEq)]
 pub enum SwapDirection {
     Return,
     Expense,
@@ -60,8 +61,8 @@ impl Pool {
         let mut remaining = amount as f64;
         while remaining > 0.0 {
             let liquidity = self.calculate_liquidity_within_tick(price);
-            if liquidity == 0.0 {
-                panic!("Not enough liquidity in pool to cover this swap: price = {price}");
+            if liquidity == 0.0 && !self.check_available_liquidity(price, token, direction) {
+                panic!("Not enough liquidity in pool to cover this swap");
             }
             let temp = match direction {
                 SwapDirection::Expense => self.get_amount_in_within_tick(
@@ -87,6 +88,48 @@ impl Pool {
             new_liquidity: liquidity,
             new_sqrt_price: price,
         }
+    }
+
+    fn check_available_liquidity(
+        &self,
+        sqrt_price: f64,
+        token: &AccountId,
+        direction: SwapDirection,
+    ) -> bool {
+        if direction == SwapDirection::Expense {
+            if token.to_string() == self.token1 {
+                // price goes down
+                for position in &self.positions {
+                    if position.sqrt_upper_bound_price < sqrt_price {
+                        return true;
+                    }
+                }
+            } else {
+                // price goes up
+                for position in &self.positions {
+                    if position.sqrt_upper_bound_price < sqrt_price {
+                        return true;
+                    }
+                }
+            }
+        } else {
+            if token.to_string() == self.token1 {
+                // price goes up
+                for position in &self.positions {
+                    if position.sqrt_upper_bound_price < sqrt_price {
+                        return true;
+                    }
+                }
+            } else {
+                // price goes down
+                for position in &self.positions {
+                    if position.sqrt_upper_bound_price < sqrt_price {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     fn calculate_liquidity_within_tick(&self, sqrt_price: f64) -> f64 {
@@ -141,7 +184,7 @@ impl Pool {
             }
         }
         *sqrt_price = new_sqrt_price;
-        return amount_in;
+        return amount_in.abs();
     }
 
     fn get_amount_out_within_tick(
@@ -184,7 +227,7 @@ impl Pool {
             }
         }
         *sqrt_price = new_sqrt_price;
-        return -amount_out;
+        return amount_out.abs();
     }
 
     pub fn get_sqrt_price(&self) -> f64 {
@@ -222,7 +265,7 @@ impl Pool {
 
 #[cfg(test)]
 mod test {
-    use crate::{pool::SwapDirection, *};
+    use crate::{pool::SwapDirection, position::sqrt_price_to_tick, *};
     #[test]
     fn pool_get_expense_x() {
         let token0 = "first".to_string();
@@ -260,7 +303,7 @@ mod test {
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
-        assert!(exp.amount.floor() == 97.0);
+        assert!(exp.amount.floor() == 98.0);
         assert!(exp.new_sqrt_price.floor() == 9.0);
         assert!(exp.new_liquidity.floor() == 555.0);
     }
@@ -277,5 +320,68 @@ mod test {
         assert!(exp.amount.floor() == 8.0);
         assert!(exp.new_sqrt_price.floor() == 11.0);
         assert!(exp.new_liquidity.floor() == 555.0);
+    }
+
+    #[test]
+    fn pool_get_return_x_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert!(new_tick == pool.tick);
+    }
+
+    #[test]
+    fn pool_get_return_y_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token1, 1, SwapDirection::Return);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert!(new_tick == pool.tick);
+    }
+
+    #[test]
+    #[should_panic(expected = "Not enough liquidity in pool to cover this swap")]
+    fn pool_get_return_not_enough_liquidity() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        pool.get_swap_result(&token1, 1000, SwapDirection::Return);
+    }
+
+    #[test]
+    #[should_panic(expected = "Not enough liquidity in pool to cover this swap")]
+    fn pool_get_expense_not_enough_liquidity() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        pool.get_swap_result(&token1, 1000, SwapDirection::Expense);
+    }
+
+    #[test]
+    fn pool_get_amount_many_positions() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        for i in 1..100 {
+            let position = Position::new(
+                0,
+                String::new(),
+                Some(i * 100),
+                None,
+                100.0 - i as f64,
+                100.0 + i as f64,
+                10.0,
+            );
+            pool.open_position(position);
+        }
+        pool.get_swap_result(&token0, 1000000, SwapDirection::Return);
+        pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
     }
 }
