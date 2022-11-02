@@ -93,14 +93,14 @@ impl Contract {
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
-        let swap_result = pool.get_return(token_in, amount_in);
+        let swap_result = pool.get_swap_result(token_in, amount_in, pool::SwapDirection::Return);
         swap_result.amount
     }
 
     pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: u128) -> f64 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &self.pools[pool_id];
-        let swap_result = pool.get_expense(token_out, amount_out);
+        let swap_result = pool.get_swap_result(token_out, amount_out, pool::SwapDirection::Expense);
         swap_result.amount
     }
 
@@ -123,10 +123,11 @@ impl Contract {
         let account_id = env::predecessor_account_id();
         self.accounts
             .increase_balance(&account_id, &token_in, amount_out);
-        let swap_result = pool.get_expense(&token_out, amount_out);
+        let swap_result =
+            pool.get_swap_result(&token_out, amount_out, pool::SwapDirection::Expense);
         self.accounts
             .decrease_balance(&account_id, &token_out, swap_result.amount as u128);
-        pool.swap(swap_result);
+        pool.apply_swap_result(swap_result);
     }
 
     pub fn open_position(

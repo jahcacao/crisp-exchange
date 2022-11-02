@@ -17,6 +17,11 @@ pub struct SwapResult {
     pub new_sqrt_price: f64,
 }
 
+pub enum SwapDirection {
+    Return,
+    Expense,
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Clone, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Pool {
@@ -43,49 +48,38 @@ impl Pool {
         }
     }
 
-    pub fn get_expense(&self, token_out: &AccountId, amount_out: u128) -> SwapResult {
+    pub fn get_swap_result(
+        &self,
+        token: &AccountId,
+        amount: u128,
+        direction: SwapDirection,
+    ) -> SwapResult {
         let mut collected = 0.0;
         let mut tick = self.tick;
         let mut price = self.sqrt_price;
-        let mut remaining = amount_out as f64;
+        let mut remaining = amount as f64;
         while remaining > 0.0 {
             let liquidity = self.calculate_liquidity_within_tick(price);
             if liquidity == 0.0 {
                 panic!("Not enough liquidity in pool to cover this swap: price = {price}");
             }
-            collected += self.get_amount_in_within_tick(
-                &mut tick,
-                &mut price,
-                token_out,
-                &mut remaining,
-                liquidity,
-            );
-        }
-        let liquidity = self.calculate_liquidity_within_tick(price);
-        SwapResult {
-            amount: collected,
-            new_liquidity: liquidity,
-            new_sqrt_price: price,
-        }
-    }
-
-    pub fn get_return(&self, token_in: &AccountId, amount_in: u128) -> SwapResult {
-        let mut collected = 0.0;
-        let mut tick = self.tick;
-        let mut price = self.sqrt_price;
-        let mut remaining = amount_in as f64;
-        while remaining > 0.0 {
-            let liquidity = self.calculate_liquidity_within_tick(price);
-            if liquidity == 0.0 {
-                panic!("Not enough liquidity in pool to cover this swap: price = {price}");
-            }
-            collected += self.get_amount_out_within_tick(
-                &mut tick,
-                &mut price,
-                token_in,
-                &mut remaining,
-                liquidity,
-            )
+            let temp = match direction {
+                SwapDirection::Expense => self.get_amount_in_within_tick(
+                    &mut tick,
+                    &mut price,
+                    token,
+                    &mut remaining,
+                    liquidity,
+                ),
+                SwapDirection::Return => self.get_amount_out_within_tick(
+                    &mut tick,
+                    &mut price,
+                    token,
+                    &mut remaining,
+                    liquidity,
+                ),
+            };
+            collected += temp;
         }
         let liquidity = self.calculate_liquidity_within_tick(price);
         SwapResult {
@@ -131,8 +125,6 @@ impl Pool {
                 *remaining += amount_out;
                 *tick -= 1;
             }
-            *sqrt_price = new_sqrt_price;
-            return amount_in;
         } else {
             let new_tick = *tick + 1;
             new_sqrt_price = tick_to_sqrt_price(new_tick);
@@ -147,9 +139,9 @@ impl Pool {
                 *remaining += amount_out;
                 *tick += 1;
             }
-            *sqrt_price = new_sqrt_price;
-            return amount_in;
         }
+        *sqrt_price = new_sqrt_price;
+        return amount_in;
     }
 
     fn get_amount_out_within_tick(
@@ -160,10 +152,12 @@ impl Pool {
         remaining: &mut f64,
         liquidity: f64,
     ) -> f64 {
+        let mut new_sqrt_price;
+        let mut amount_out;
         if token_in == &self.token1 {
             let new_tick = *tick + 1;
-            let mut new_sqrt_price = tick_to_sqrt_price(new_tick);
-            let mut amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
+            new_sqrt_price = tick_to_sqrt_price(new_tick);
+            amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
             let amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
             if amount_in > *remaining {
                 let delta_sqrt_price = *remaining / liquidity;
@@ -174,12 +168,10 @@ impl Pool {
                 *remaining -= amount_in;
                 *tick += 1;
             }
-            *sqrt_price = new_sqrt_price;
-            return -amount_out;
         } else {
             let new_tick = *tick - 1;
-            let mut new_sqrt_price = tick_to_sqrt_price(new_tick);
-            let mut amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
+            new_sqrt_price = tick_to_sqrt_price(new_tick);
+            amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
             let amount_in = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
             if amount_in > *remaining {
                 let delta_reversed_sqrt_price = *remaining / liquidity;
@@ -190,9 +182,9 @@ impl Pool {
                 *remaining -= amount_in;
                 *tick -= 1;
             }
-            *sqrt_price = new_sqrt_price;
-            return -amount_out;
         }
+        *sqrt_price = new_sqrt_price;
+        return -amount_out;
     }
 
     pub fn get_sqrt_price(&self) -> f64 {
@@ -222,7 +214,7 @@ impl Pool {
         self.positions.remove(id);
     }
 
-    pub fn swap(&mut self, swap_result: SwapResult) {
+    pub fn apply_swap_result(&mut self, swap_result: SwapResult) {
         self.liquidity = swap_result.new_liquidity;
         self.sqrt_price = swap_result.new_sqrt_price;
     }
@@ -230,7 +222,7 @@ impl Pool {
 
 #[cfg(test)]
 mod test {
-    use crate::*;
+    use crate::{pool::SwapDirection, *};
     #[test]
     fn pool_get_expense_x() {
         let token0 = "first".to_string();
@@ -239,7 +231,7 @@ mod test {
         let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
         assert!(position.liquidity == 376.3440860215054);
         pool.open_position(position);
-        let exp = pool.get_expense(&token0, 10);
+        let exp = pool.get_swap_result(&token0, 10, SwapDirection::Expense);
         assert!(exp.amount.floor() == 601.0);
         assert!(exp.new_sqrt_price.floor() == 8.0);
         assert!(exp.new_liquidity.floor() == 376.0);
@@ -253,7 +245,7 @@ mod test {
         let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
         assert!(position.liquidity == 376.3440860215054);
         pool.open_position(position);
-        let exp = pool.get_expense(&token1, 10);
+        let exp = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         assert!(exp.amount.floor() == 0.0);
         assert!(exp.new_sqrt_price.floor() == 6.0);
         assert!(exp.new_liquidity.floor() == 376.0);
@@ -267,7 +259,7 @@ mod test {
         let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
-        let exp = pool.get_return(&token0, 1);
+        let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
         assert!(exp.amount.floor() == 97.0);
         assert!(exp.new_sqrt_price.floor() == 9.0);
         assert!(exp.new_liquidity.floor() == 555.0);
@@ -281,7 +273,7 @@ mod test {
         let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
-        let exp = pool.get_return(&token1, 1000);
+        let exp = pool.get_swap_result(&token1, 1000, SwapDirection::Return);
         assert!(exp.amount.floor() == 8.0);
         assert!(exp.new_sqrt_price.floor() == 11.0);
         assert!(exp.new_liquidity.floor() == 555.0);
