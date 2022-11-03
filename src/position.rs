@@ -138,13 +138,13 @@ pub fn get_liquidity_1(y: f64, sa: f64, sb: f64) -> f64 {
     y / (sb - sa)
 }
 
-pub fn _get_liquidity(x: f64, y: f64, sp: f64, sa: f64, sb: f64) -> f64 {
+pub fn get_liquidity(x: f64, y: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     let liquidity;
     if sp <= sa {
         liquidity = get_liquidity_0(x, sa, sb);
     } else if sp < sb {
-        let liquidity0 = get_liquidity_0(x, sa, sb);
-        let liquidity1 = get_liquidity_1(y, sa, sb);
+        let liquidity0 = get_liquidity_0(x, sp, sb);
+        let liquidity1 = get_liquidity_1(y, sa, sp);
         liquidity = min(liquidity0, liquidity1)
     } else {
         liquidity = get_liquidity_1(y, sa, sb);
@@ -162,20 +162,20 @@ pub fn calculate_y(l: f64, sp: f64, sa: f64, sb: f64) -> f64 {
     l * (sp - sa)
 }
 
-pub fn _calculate_a1(l: f64, sp: f64, _sb: f64, _x: f64, y: f64) -> f64 {
+pub fn calculate_a1(l: f64, sp: f64, _sb: f64, _x: f64, y: f64) -> f64 {
     (sp - y / l).powf(2.0)
 }
 
-pub fn _calculate_a2(sp: f64, sb: f64, x: f64, y: f64) -> f64 {
+pub fn calculate_a2(sp: f64, sb: f64, x: f64, y: f64) -> f64 {
     let sa = y / (sb * x) + sp - y / (sp * x);
     sa.powf(2.0)
 }
 
-pub fn _calculate_b1(l: f64, sp: f64, _sa: f64, x: f64, _y: f64) -> f64 {
+pub fn calculate_b1(l: f64, sp: f64, _sa: f64, x: f64, _y: f64) -> f64 {
     ((l * sp) / (l - sp * x)).powf(2.0)
 }
 
-pub fn _calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
+pub fn calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
     let p = sp.powf(2.0);
     (sp * y / ((sa * sp - p) * x + y)).powf(2.0)
 }
@@ -189,8 +189,156 @@ pub fn sqrt_price_to_tick(sqrt_price: f64) -> i32 {
 }
 
 #[cfg(test)]
+
 mod test {
-    use crate::*;
+    use super::min;
+    use crate::position::*;
+    use crate::{position::max, *};
+    #[test]
+    fn debug_info() {
+        let p = 3227.02_f64;
+        let a = 1626.3_f64;
+        let b = 4846.3_f64;
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        println!("p = {}, a = {}, b = {}, x = {}, y = {}", p, a, b, x, y);
+    }
+    #[test]
+    fn min_vault() {
+        let first = 50_f64;
+        let second = 100_f64;
+        assert_eq!(min(first, second), 50_f64);
+    }
+    #[test]
+    fn max_vault() {
+        let first = 50_f64;
+        let second = 100_f64;
+        assert_eq!(max(first, second), 100_f64);
+    }
+    #[test]
+    fn get_liquidity_0_test() {
+        let sa = 1626.3_f64.powf(0.5);
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let l_0 = get_liquidity_0(x, sa.powf(0.5), sb.powf(0.5)).floor();
+        assert_eq!(l_0, 26.0);
+        println!("sa = {}, sb = {}, x = {}, l_0 = {}", sa, sb, x, l_0);
+    }
+    #[test]
+    fn get_liquidity_1_test() {
+        let sa = 1626.3_f64.powf(0.5);
+        let sb = 4846.3_f64.powf(0.5);
+        let y = 5096.06_f64;
+        let l_1 = get_liquidity_1(y, sa.powf(0.5), sb.powf(0.5)).floor();
+        assert_eq!(l_1, 2556.0);
+        println!("sa = {}, sb = {}, y = {}, l_1 = {}", sa, sb, y, l_1);
+    }
+    #[test]
+    fn get_liquidity_test() {
+        // At sp <= sa ((x * sa * sb)/(sb - sa))
+        let mut sp = 1500.02_f64.powf(0.5);
+        let mut sa = 3500.3_f64.powf(0.5);
+        let mut sb = 1500.3_f64.powf(0.5);
+        let mut x = 2_f64;
+        let mut y = 5096.06_f64;
+        let mut l = get_liquidity(x, y, sp, sa, sb).floor();
+        assert_eq!(l, -225.0);
+        println!("sp <= sa, l = {}", l);
+        // At sp < sb
+        // min(get_liquidity_0, get_liquidity_1)
+        // get_liquidity_0 = ((x * sa * sb)/(sb - sa))
+        // get_liquidity_1 = y /(sb - sa)
+        sp = 3227.02_f64.powf(0.5);
+        sa = 3000.3_f64.powf(0.5);
+        sb = 3800.3_f64.powf(0.5);
+        x = 1_f64;
+        y = 5096.06_f64;
+        l = get_liquidity(x, y, sp, sa, sb).floor();
+        assert_eq!(l, 723.0);
+        println!("sp < sb, l = {}", l);
+        // At sa < sp > sb
+        sp = 3600.02_f64.powf(0.5);
+        sa = 3500.3_f64.powf(0.5);
+        sb = 3000.3_f64.powf(0.5);
+        x = 1_f64;
+        y = 5096.06_f64;
+        l = get_liquidity(x, y, sp, sa, sb).floor();
+        assert_eq!(l, -1162.0);
+        println!(" sa < sp > sb, l = {}", l);
+    }
+    #[test]
+    fn calculate_x_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let sa = 1626.3_f64.powf(0.5);
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let l = get_liquidity(x, y, sp, sa, sb);
+        let x1 = calculate_x(l, sp, sa, sb);
+        assert_eq!(x, 1.00);
+        assert!(x == 1.0);
+        println!("old x = {}, new x = {}", x, x1);
+    }
+    #[test]
+    fn calculate_y_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let sa = 1626.3_f64.powf(0.5);
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let l = get_liquidity(x, y, sp, sa, sb);
+        let y1 = calculate_y(l, sp, sa, sb);
+        assert_eq!(y1.floor(), 5088.0);
+        println!("old y = {}, new y = {}", y, y1);
+    }
+    #[test]
+    fn calculate_a1_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let a = 1626.3_f64;
+        let sa = 1626.3_f64.powf(0.5);
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let l = get_liquidity(x, y, sp, sa, sb);
+        let a1 = calculate_a1(l, sp, sb, x, y);
+        assert_eq!(a1.floor(), 1624.0);
+        println!("old a = {}, new a = {}", a, a1);
+    }
+    #[test]
+    fn calculate_a2_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let a = 1626.3_f64;
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let a2 = calculate_a2(sp, sb, x, y);
+        assert_eq!(a2.floor(), 1624.0);
+        println!("old a = {}, new a delta = {}", a, a2);
+    }
+    #[test]
+    fn calculate_b1_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let sa = 1626.3_f64.powf(0.5);
+        let b = 4846.3_f64;
+        let sb = 4846.3_f64.powf(0.5);
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let l = get_liquidity(x, y, sp, sa, sb);
+        let b1 = calculate_b1(l, sp, sa, x, y);
+        assert_eq!(b1.floor(), 4846.0);
+        println!("old b = {}, new b = {}", b, b1);
+    }
+    #[test]
+    fn calculate_b2_test() {
+        let sp = 3227.02_f64.powf(0.5);
+        let sa = 1626.3_f64.powf(0.5);
+        let b = 4846.3_f64;
+        let x = 1_f64;
+        let y = 5096.06_f64;
+        let b2 = calculate_b2(sp, sa, x, y);
+        assert_eq!(b2.floor(), 4842.0);
+        println!("old b = {}, new b delta = {}", b, b2);
+    }
     #[test]
     fn open_position() {
         let position = Position::new(0, String::new(), Some(50), None, 25.0, 121.0, 10.0);
