@@ -111,13 +111,13 @@ impl Contract {
         sqrt_price * sqrt_price
     }
 
-    pub fn swap(
+    pub fn swap_out(
         &mut self,
         pool_id: usize,
         token_in: AccountId,
         amount_out: u128,
         token_out: AccountId,
-    ) {
+    ) -> u128 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
@@ -128,6 +128,26 @@ impl Contract {
         self.accounts
             .decrease_balance(&account_id, &token_out, swap_result.amount as u128);
         pool.apply_swap_result(swap_result);
+        swap_result.amount as u128
+    }
+
+    pub fn swap_in(
+        &mut self,
+        pool_id: usize,
+        token_in: AccountId,
+        amount_in: u128,
+        token_out: AccountId,
+    ) -> u128 {
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        let pool = &mut self.pools[pool_id];
+        let account_id = env::predecessor_account_id();
+        self.accounts
+            .decrease_balance(&account_id, &token_in, amount_in);
+        let swap_result = pool.get_swap_result(&token_out, amount_in, pool::SwapDirection::Return);
+        self.accounts
+            .increase_balance(&account_id, &token_out, swap_result.amount as u128);
+        pool.apply_swap_result(swap_result);
+        swap_result.amount as u128
     }
 
     pub fn open_position(
@@ -204,3 +224,4 @@ impl Contract {
 // tests for rewards
 // front
 // decimals
+// nft

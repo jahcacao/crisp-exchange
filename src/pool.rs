@@ -11,6 +11,7 @@ use crate::{
     tick::Tick,
 };
 
+#[derive(Clone, Copy)]
 pub struct SwapResult {
     pub amount: f64,
     pub new_liquidity: f64,
@@ -383,5 +384,33 @@ mod test {
         }
         pool.get_swap_result(&token0, 1000000, SwapDirection::Return);
         pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
+    }
+
+    #[test]
+    fn pool_apply_swap_result_return() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0);
+        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
+        assert!(position.liquidity.floor() == 555.0);
+        pool.open_position(position);
+        let result = pool.get_swap_result(&token0, 1, SwapDirection::Return);
+        pool.apply_swap_result(result);
+        assert!(pool.sqrt_price.floor() == 9.0);
+        assert!(pool.liquidity.floor() == 555.0);
+    }
+
+    #[test]
+    fn pool_apply_swap_result_expense() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0);
+        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
+        assert!(position.liquidity == 376.3440860215054);
+        pool.open_position(position);
+        let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
+        pool.apply_swap_result(result);
+        assert!(pool.sqrt_price.floor() == 6.0);
+        assert!(pool.liquidity.floor() == 376.0);
     }
 }

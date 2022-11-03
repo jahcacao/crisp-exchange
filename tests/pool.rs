@@ -405,3 +405,171 @@ fn get_expense() {
     assert!(exp1.floor() == 100.0);
     assert!(exp2.floor() == 0.0);
 }
+
+#[test]
+fn swap_in_token0() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(200000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    let balance1_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 100000);
+    assert!(balance2_before == 0);
+    let amount1 = 100000;
+    let amount2 = contract.swap_in(0, accounts(1).to_string(), amount1, accounts(2).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == 0);
+    assert!(balance2_after == amount2);
+}
+
+#[test]
+fn swap_in_token1() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    let balance1_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 0);
+    assert!(balance2_before == 100000);
+    let amount1 = 100000;
+    let amount2 = contract.swap_in(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == amount2);
+    assert!(balance2_after == 0);
+}
+
+#[test]
+fn swap_out_token0() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11001000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    let balance1_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 0);
+    assert!(balance2_before == 1000);
+    let amount1 = 100000;
+    contract.swap_out(0, accounts(1).to_string(), amount1, accounts(2).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == amount1);
+    assert!(balance2_after == 0);
+}
+
+#[test]
+fn swap_out_token1() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(11100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    let balance1_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 11000000);
+    assert!(balance2_before == 0);
+    let amount1 = 100000;
+    contract.swap_out(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == 0);
+    assert!(balance2_after == amount1);
+}
