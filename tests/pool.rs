@@ -11,7 +11,13 @@ mod common;
 #[test]
 fn create_pool() {
     let (mut _context, mut contract) = setup_contract();
-    contract.create_pool(accounts(0).to_string(), accounts(1).to_string(), 100.0);
+    contract.create_pool(
+        accounts(0).to_string(),
+        accounts(1).to_string(),
+        100.0,
+        0,
+        0,
+    );
     let pool = contract.get_pool(0).unwrap();
     assert!(pool.token0 == accounts(0).to_string());
     assert!(pool.token1 == accounts(1).to_string());
@@ -19,12 +25,20 @@ fn create_pool() {
     assert!(pool.tick == 46054);
     assert!(pool.positions == vec![]);
     assert!(pool.sqrt_price == 10.0);
+    assert!(pool.protocol_fee == 0);
+    assert!(pool.rewards == 0);
 }
 
 #[test]
 fn open_position_is_correct() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -69,7 +83,13 @@ fn open_position_is_correct() {
 #[test]
 fn open_position_less_than_lower_bound() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -114,7 +134,13 @@ fn open_position_less_than_lower_bound() {
 #[test]
 fn open_position_more_than_upper_bound() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -159,7 +185,13 @@ fn open_position_more_than_upper_bound() {
 #[test]
 fn open_two_positions() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -197,7 +229,13 @@ fn open_two_positions() {
 #[test]
 fn open_three_positions() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -236,7 +274,13 @@ fn open_three_positions() {
 #[test]
 fn open_ten_positions() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -282,7 +326,13 @@ fn open_ten_positions() {
 #[test]
 fn close_position() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -328,7 +378,13 @@ fn close_position() {
 #[test]
 fn close_two_position() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -373,7 +429,13 @@ fn close_two_position() {
 #[test]
 fn get_expense() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -409,7 +471,13 @@ fn get_expense() {
 #[test]
 fn swap_in_token0() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -451,7 +519,13 @@ fn swap_in_token0() {
 #[test]
 fn swap_in_token1() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -493,56 +567,20 @@ fn swap_in_token1() {
 #[test]
 fn swap_out_token0() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
         accounts(0),
         accounts(1),
-        U128(100000),
-    );
-    testing_env!(context.predecessor_account_id(accounts(2)).build());
-    deposit_tokens(
-        &mut context,
-        &mut contract,
-        accounts(0),
-        accounts(2),
-        U128(11001000),
-    );
-    testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.open_position(0, Some(100000), None, 81.0, 121.0);
-    let balance1_before = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    let balance2_before = contract
-        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
-        .unwrap();
-    assert!(balance1_before == 0);
-    assert!(balance2_before == 1000);
-    let amount1 = 100000;
-    contract.swap_out(0, accounts(1).to_string(), amount1, accounts(2).to_string());
-    let balance1_after = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    let balance2_after = contract
-        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
-        .unwrap();
-    assert!(balance1_after == amount1);
-    assert!(balance2_after == 0);
-}
-
-#[test]
-fn swap_out_token1() {
-    let (mut context, mut contract) = setup_contract();
-    contract.create_pool(accounts(1).to_string(), accounts(2).to_string(), 100.0);
-    testing_env!(context.predecessor_account_id(accounts(1)).build());
-    deposit_tokens(
-        &mut context,
-        &mut contract,
-        accounts(0),
-        accounts(1),
-        U128(11100000),
+        U128(101000),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
     deposit_tokens(
@@ -560,10 +598,10 @@ fn swap_out_token1() {
     let balance2_before = contract
         .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
         .unwrap();
-    assert!(balance1_before == 11000000);
+    assert!(balance1_before == 1000);
     assert!(balance2_before == 0);
     let amount1 = 100000;
-    contract.swap_out(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    contract.swap_out(0, accounts(1).to_string(), amount1, accounts(2).to_string());
     let balance1_after = contract
         .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
         .unwrap();
@@ -572,4 +610,201 @@ fn swap_out_token1() {
         .unwrap();
     assert!(balance1_after == 0);
     assert!(balance2_after == amount1);
+}
+
+#[test]
+fn swap_out_token1() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(22000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    let balance1_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 0);
+    assert!(balance2_before == 11000000);
+    let amount1 = 100000;
+    contract.swap_out(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == amount1);
+    assert!(balance2_after == 0);
+}
+
+#[test]
+fn fee_test_out() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        100,
+        100,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(1),
+        U128(0),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(2),
+        U128(11220000),
+    );
+    let balance1_before = contract
+        .get_balance(&accounts(3).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 0);
+    assert!(balance2_before == 11220000);
+    let amount1 = 100000;
+    testing_env!(context.predecessor_account_id(accounts(3)).build());
+    contract.swap_out(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(3).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_after == amount1);
+    assert!(balance2_after == 0);
+    let balance1_lp_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_lp_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    let amount2 = (balance2_before as f64 / 1.02) * 0.01;
+    assert!(balance1_lp_after == 0);
+    assert!((balance2_lp_after as f64 - amount2).abs() < 100.0);
+}
+
+#[test]
+fn fee_test_in() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        100,
+        100,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(100000), None, 81.0, 121.0);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(1),
+        U128(0),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(2),
+        U128(100000),
+    );
+    let balance1_before = contract
+        .get_balance(&accounts(3).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_before = contract
+        .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
+        .unwrap();
+    assert!(balance1_before == 0);
+    assert!(balance2_before == 100000);
+    let amount1 = 100000;
+    testing_env!(context.predecessor_account_id(accounts(3)).build());
+    let result = contract.swap_in(0, accounts(2).to_string(), amount1, accounts(1).to_string());
+    let balance1_after = contract
+        .get_balance(&accounts(3).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_after = contract
+        .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
+        .unwrap();
+    let amount2 = result as f64 * 0.98;
+    assert!((balance1_after as f64 - amount2).abs() < 10.0);
+    assert!(balance2_after == 0);
+    let balance1_lp_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
+        .unwrap();
+    let balance2_lp_after = contract
+        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
+        .unwrap();
+    let amount3 = result as f64 * 0.01;
+    assert!((balance1_lp_after as f64 - amount3).abs() < 10.0);
+    assert!(balance2_lp_after == 0);
 }

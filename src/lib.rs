@@ -47,8 +47,16 @@ impl Contract {
         token1: AccountId,
         token2: AccountId,
         initial_price: f64,
+        protocol_fee: u16,
+        rewards: u16,
     ) -> usize {
-        self.pools.push(Pool::new(token1, token2, initial_price));
+        self.pools.push(Pool::new(
+            token1,
+            token2,
+            initial_price,
+            protocol_fee,
+            rewards,
+        ));
         return self.pools.len() - 1;
     }
 
@@ -122,12 +130,19 @@ impl Contract {
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         self.accounts
-            .increase_balance(&account_id, &token_in, amount_out);
+            .increase_balance(&account_id, &token_out, amount_out);
         let swap_result =
             pool.get_swap_result(&token_out, amount_out, pool::SwapDirection::Expense);
         self.accounts
-            .decrease_balance(&account_id, &token_out, swap_result.amount as u128);
-        pool.apply_swap_result(swap_result);
+            .apply_collected_fees(&swap_result.collected_fees, &token_in);
+        self.accounts
+            .decrease_balance(&account_id, &token_in, swap_result.amount as u128);
+        let fees_amount = (swap_result.amount as f64)
+            * (pool.protocol_fee as f64 + pool.rewards as f64)
+            / 10000.0;
+        self.accounts
+            .decrease_balance(&account_id, &token_in, fees_amount as u128);
+        pool.apply_swap_result(&swap_result);
         swap_result.amount as u128
     }
 
@@ -145,8 +160,14 @@ impl Contract {
             .decrease_balance(&account_id, &token_in, amount_in);
         let swap_result = pool.get_swap_result(&token_out, amount_in, pool::SwapDirection::Return);
         self.accounts
+            .apply_collected_fees(&swap_result.collected_fees, &token_out);
+        self.accounts
             .increase_balance(&account_id, &token_out, swap_result.amount as u128);
-        pool.apply_swap_result(swap_result);
+        let fees_amount =
+            swap_result.amount * (pool.protocol_fee as f64 + pool.rewards as f64) / 10000.0;
+        self.accounts
+            .decrease_balance(&account_id, &token_out, fees_amount as u128);
+        pool.apply_swap_result(&swap_result);
         swap_result.amount as u128
     }
 
@@ -210,16 +231,8 @@ impl Contract {
     }
 }
 
-// open order for concentrated liquidity
 // fees
 // rewards
-// test get_balance
-// test get_balance_all_tokens
-// test withdraw
-// test deposits
-// test liquidity
-// test get return
-// tests for swap
 // tests for fees
 // tests for rewards
 // front

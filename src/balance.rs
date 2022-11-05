@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
@@ -74,6 +76,16 @@ impl AccountsInfo {
             }
         } else {
             panic!("{}", YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL);
+        }
+    }
+
+    pub fn apply_collected_fees(
+        &mut self,
+        collected_fees: &HashMap<AccountId, f64>,
+        token: &AccountId,
+    ) {
+        for (account_id, amount) in collected_fees.into_iter() {
+            self.increase_balance(account_id, token, *amount as u128);
         }
     }
 }
