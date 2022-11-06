@@ -16,15 +16,64 @@ mod position;
 mod tick;
 mod token_receiver;
 
+use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
+use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{Balance, CryptoHash, Promise, PromiseOrValue};
+use std::collections::HashMap;
+
+pub use crate::approval::*;
+pub use crate::events::*;
+use crate::internal::*;
+pub use crate::metadata::*;
+pub use crate::mint::*;
+pub use crate::nft_core::*;
+pub use crate::royalty::*;
+
+mod approval;
+mod enumeration;
+mod events;
+mod internal;
+mod metadata;
+mod mint;
+mod nft_core;
+mod royalty;
+mod tests;
+
+#[derive(BorshSerialize)]
+pub enum StorageKey {
+    TokensPerOwner,
+    TokenPerOwnerInner { account_id_hash: CryptoHash },
+    TokensById,
+    TokenMetadataById,
+    NFTContractMetadata,
+    TokensPerType,
+    TokensPerTypeInner { token_type_hash: CryptoHash },
+    TokenTypesLocked,
+}
+
+/// This spec can be treated like a version of the standard.
+pub const NFT_METADATA_SPEC: &str = "1.0.0";
+/// This is the name of the NFT standard we're using
+pub const NFT_STANDARD_NAME: &str = "nep171";
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     /// Account of the owner.
-    owner_id: AccountId,
+    pub owner_id: AccountId,
     /// List of all the pools.
-    pools: Vec<Pool>,
+    pub pools: Vec<Pool>,
     //  Accounts registered, keeping track all the amounts deposited, storage and more.
-    accounts: AccountsInfo,
+    pub accounts: AccountsInfo,
+    //keeps track of all the token IDs for a given account
+    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    //keeps track of the token struct for a given token ID
+    pub tokens_by_id: LookupMap<TokenId, Token>,
+    //keeps track of the token metadata for a given token ID
+    pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
+    //keeps track of the metadata for the contract
+    pub metadata: LazyOption<NFTContractMetadata>,
 }
 
 #[near_bindgen]
@@ -32,12 +81,30 @@ impl Contract {
     #[private]
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
+        let metadata = NFTContractMetadata {
+            spec: "nft-1.0.0".to_string(),
+            name: "Crisp Exchange Contract".to_string(),
+            symbol: "CRISP.EX".to_string(),
+            icon: None,
+            base_uri: None,
+            reference: None,
+            reference_hash: None,
+        };
         Self {
             owner_id: owner_id.clone(),
             pools: Vec::new(),
             accounts: AccountsInfo {
                 accounts_info: UnorderedMap::new(b"a"),
             },
+            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
+            token_metadata_by_id: UnorderedMap::new(
+                StorageKey::TokenMetadataById.try_to_vec().unwrap(),
+            ),
+            metadata: LazyOption::new(
+                StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
+                Some(&metadata),
+            ),
         }
     }
 
@@ -205,7 +272,22 @@ impl Contract {
             &pool.token1,
             position.token1_real_liquidity as u128,
         );
+        let metadata = TokenMetadata {
+            title: Some("Crisp Ex LP Token".to_string()),
+            media: Some("https://bafkreibjmwxasfb76j6tepmrcgdh3zq3uxz5eunklfs23pfjwocswsntfq.ipfs.nftstorage.link/".to_string()),
+            description: None,
+            media_hash: None,
+            copies: Some(1u64),
+            issued_at: None,
+            expires_at: None,
+            starts_at: None,
+            updated_at: None,
+            extra: None,
+            reference: None,
+            reference_hash: None,
+        };
         pool.open_position(position);
+        self.nft_mint(id.to_string(), account_id.clone(), metadata);
         return id;
     }
 
@@ -213,8 +295,10 @@ impl Contract {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let token = self.tokens_by_id.get(&id.to_string()).unwrap();
+        assert!(account_id == token.owner_id);
         for (i, position) in &mut pool.positions.iter().enumerate() {
-            if position.id == id && position.owner_id == account_id {
+            if position.id == id {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
                 let mut position = position.clone();
@@ -224,6 +308,7 @@ impl Contract {
                 self.accounts.increase_balance(&account_id, token0, amount0);
                 self.accounts.increase_balance(&account_id, token1, amount1);
                 pool.close_position(i);
+                self.nft_burn(id.to_string());
                 return true;
             }
         }
@@ -231,10 +316,6 @@ impl Contract {
     }
 }
 
-// fees
-// rewards
-// tests for fees
-// tests for rewards
 // front
 // decimals
 // nft
