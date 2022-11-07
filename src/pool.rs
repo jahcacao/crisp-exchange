@@ -8,7 +8,6 @@ use near_sdk::{
 
 use crate::{
     position::{sqrt_price_to_tick, tick_to_sqrt_price, Position},
-    tick::Tick,
 };
 
 #[derive(Clone)]
@@ -33,7 +32,6 @@ pub struct Pool {
     pub liquidity: f64,
     pub sqrt_price: f64,
     pub tick: i32,
-    pub ticks_range: HashMap<i32, Tick>,
     pub positions: Vec<Position>,
     pub protocol_fee: u16,
     pub rewards: u16,
@@ -55,7 +53,6 @@ impl Pool {
             sqrt_price: price.sqrt(),
             positions: vec![],
             tick: tick,
-            ticks_range: HashMap::new(),
             protocol_fee,
             rewards,
         }

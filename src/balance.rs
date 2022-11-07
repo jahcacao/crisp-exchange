@@ -73,6 +73,9 @@ impl AccountsInfo {
             if let Some(current_amount) = balance.get(&token) {
                 balance.insert(&token, &(current_amount + amount));
                 self.accounts_info.insert(&account_id, &balance);
+            } else {
+                balance.insert(&token, &amount);
+                self.accounts_info.insert(&account_id, &balance);
             }
         } else {
             panic!("{}", YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL);

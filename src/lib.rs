@@ -10,10 +10,8 @@ use crate::position::Position;
 
 mod balance;
 mod errors;
-mod fees;
 mod pool;
 mod position;
-mod tick;
 mod token_receiver;
 
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -148,8 +146,8 @@ impl Contract {
         }
     }
 
-    pub fn get_balance_all_tokens(&self, account: &AccountId) -> String {
-        if let Some(balance) = self.accounts.get_balance(account) {
+    pub fn get_balance_all_tokens(&self, account_id: &AccountId) -> String {
+        if let Some(balance) = self.accounts.get_balance(account_id) {
             let mut result = String::new();
             for (token, amount) in balance.iter() {
                 result += &format!("{token}: {amount}, ");
@@ -305,4 +303,3 @@ impl Contract {
 
 // front
 // decimals
-// nft
