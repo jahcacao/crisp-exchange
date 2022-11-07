@@ -4,6 +4,8 @@ use near_sdk::{
     AccountId,
 };
 
+use crate::errors::*;
+
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
@@ -46,7 +48,11 @@ impl Position {
         upper_bound_price: f64,
         sqrt_price: f64,
     ) -> Position {
-        assert!(token0_liquidity.is_some() ^ token1_liquidity.is_some());
+        assert!(
+            token0_liquidity.is_some() ^ token1_liquidity.is_some(),
+            "{}",
+            INCORRECT_TOKEN
+        );
         let liquidity;
         let x;
         let y;
@@ -55,7 +61,8 @@ impl Position {
         if token0_liquidity.is_some() {
             assert!(
                 sqrt_price <= sqrt_upper_bound_price,
-                "Wrong token amount chosen"
+                "{}",
+                WRONG_TOKEN_AMOUNT
             );
             x = token0_liquidity.unwrap() as f64;
             liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
@@ -68,7 +75,8 @@ impl Position {
         } else {
             assert!(
                 sqrt_price >= sqrt_lower_bound_price,
-                "Wrong token amount chosen"
+                "{}",
+                WRONG_TOKEN_AMOUNT
             );
             y = token1_liquidity.unwrap() as f64;
             liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
@@ -342,43 +350,115 @@ mod test {
     #[test]
     fn open_position() {
         let position = Position::new(0, String::new(), Some(50), None, 25.0, 121.0, 10.0);
-        assert!(position.id == 0);
-        assert!(position.owner_id == String::new());
-        assert!(position.token0_real_liquidity.floor() == 50.0);
-        assert!(position.token1_real_liquidity == 27500.0);
-        assert!(position.liquidity == 5500.0);
-        assert!(position.tick_lower_bound_price == 32190);
-        assert!(position.tick_upper_bound_price == 47960);
-        assert!(position.sqrt_lower_bound_price == 4.999908090496346);
-        assert!(position.sqrt_upper_bound_price == 10.999833188399927);
+        assert!(position.id == 0, "{}", BAD_POSITION_ID);
+        assert!(position.owner_id == String::new(), "{}", NO_VALID_OWNER_ID);
+        assert!(
+            position.token0_real_liquidity.floor() == 50.0,
+            "{}",
+            TOKEN0_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(
+            position.token1_real_liquidity == 27500.0,
+            "{}",
+            TOKEN1_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(position.liquidity == 5500.0, "{}", LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.tick_lower_bound_price == 32190,
+            "{}",
+            BAD_TICK_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.tick_upper_bound_price == 47960,
+            "{}",
+            BAD_TICK_UPPER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_lower_bound_price == 4.999908090496346,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_upper_bound_price == 10.999833188399927,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
     }
 
     #[test]
     fn open_position_less_than_lower_bound() {
         let position = Position::new(0, String::new(), Some(50), None, 121.0, 144.0, 10.0);
-        assert!(position.id == 0);
-        assert!(position.owner_id == String::new());
-        assert!(position.token0_real_liquidity == 50.0);
-        assert!(position.token1_real_liquidity == 0.0);
-        assert!(position.liquidity == 3000.0);
-        assert!(position.tick_lower_bound_price == 47960);
-        assert!(position.tick_upper_bound_price == 49700);
-        assert!(position.sqrt_lower_bound_price == 10.999833188399927);
-        assert!(position.sqrt_upper_bound_price == 11.99962930765891);
+        assert!(position.id == 0, "{}", BAD_POSITION_ID);
+        assert!(position.owner_id == String::new(), "{}", NO_VALID_OWNER_ID);
+        assert!(
+            position.token0_real_liquidity == 50.0,
+            "{}",
+            TOKEN0_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(
+            position.token1_real_liquidity == 0.0,
+            "{}",
+            TOKEN1_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(position.liquidity == 3000.0, "{}", LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.tick_lower_bound_price == 47960,
+            "{}",
+            BAD_TICK_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.tick_upper_bound_price == 49700,
+            "{}",
+            BAD_TICK_UPPER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_lower_bound_price == 10.999833188399927,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_upper_bound_price == 11.99962930765891,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
     }
 
     #[test]
     fn open_position_more_than_upper_bound() {
         let position = Position::new(0, String::new(), None, Some(50), 121.0, 144.0, 13.0);
-        assert!(position.id == 0);
-        assert!(position.owner_id == String::new());
-        assert!(position.token0_real_liquidity == 0.0);
-        assert!(position.token1_real_liquidity == 50.0);
-        assert!(position.liquidity == 25.0);
-        assert!(position.tick_lower_bound_price == 47960);
-        assert!(position.tick_upper_bound_price == 49700);
-        assert!(position.sqrt_lower_bound_price == 10.999833188399927);
-        assert!(position.sqrt_upper_bound_price == 11.99962930765891);
+        assert!(position.id == 0, "{}", BAD_POSITION_ID);
+        assert!(position.owner_id == String::new(), "{}", NO_VALID_OWNER_ID);
+        assert!(
+            position.token0_real_liquidity == 0.0,
+            "{}",
+            TOKEN0_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(
+            position.token1_real_liquidity == 50.0,
+            "{}",
+            TOKEN1_LIQUIDITY_DOESNT_MATCH
+        );
+        assert!(position.liquidity == 25.0, "{}", LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.tick_lower_bound_price == 47960,
+            "{}",
+            BAD_TICK_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.tick_upper_bound_price == 49700,
+            "{}",
+            BAD_TICK_UPPER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_lower_bound_price == 10.999833188399927,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
+        assert!(
+            position.sqrt_upper_bound_price == 11.99962930765891,
+            "{}",
+            BAD_SQRT_LOWER_BOUND_PRICE
+        );
     }
 
     #[should_panic(expected = "Wrong token amount chosen")]
