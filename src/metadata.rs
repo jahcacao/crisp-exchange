@@ -75,3 +75,26 @@ impl NonFungibleTokenMetadata for Contract {
         self.metadata.get().unwrap()
     }
 }
+
+impl TokenMetadata {
+    pub fn new(pool_id: usize, position: &Position) -> TokenMetadata {
+        let description = Some(format!(
+            "pool: {}, position_id: {}, lower_tick: {}, upper_tick: {}",
+            pool_id, position.id, position.tick_lower_bound_price, position.tick_upper_bound_price
+        ));
+        TokenMetadata {
+            title: Some("Crisp Ex LP Token".to_string()),
+            media: Some("https://bafkreibjmwxasfb76j6tepmrcgdh3zq3uxz5eunklfs23pfjwocswsntfq.ipfs.nftstorage.link/".to_string()),
+            description,
+            media_hash: None,
+            copies: Some(1u64),
+            issued_at: None,
+            expires_at: None,
+            starts_at: None,
+            updated_at: None,
+            extra: None,
+            reference: None,
+            reference_hash: None,
+        }
+    }
+}

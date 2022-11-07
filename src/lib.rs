@@ -272,21 +272,8 @@ impl Contract {
             &pool.token1,
             position.token1_real_liquidity as u128,
         );
-        let metadata = TokenMetadata {
-            title: Some("Crisp Ex LP Token".to_string()),
-            media: Some("https://bafkreibjmwxasfb76j6tepmrcgdh3zq3uxz5eunklfs23pfjwocswsntfq.ipfs.nftstorage.link/".to_string()),
-            description: None,
-            media_hash: None,
-            copies: Some(1u64),
-            issued_at: None,
-            expires_at: None,
-            starts_at: None,
-            updated_at: None,
-            extra: None,
-            reference: None,
-            reference_hash: None,
-        };
-        pool.open_position(position);
+        pool.open_position(position.clone());
+        let metadata = TokenMetadata::new(pool_id, &position);
         self.nft_mint(id.to_string(), account_id.clone(), metadata);
         return id;
     }
