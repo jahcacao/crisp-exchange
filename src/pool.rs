@@ -355,7 +355,63 @@ mod test {
         assert!(exp.new_sqrt_price.floor() == 11.0);
         assert!(exp.new_liquidity.floor() == 555.0);
     }
+    #[test]
+    fn pool_get_expense_x_out_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
+        let position = Position::new(0, String::new(), Some(10), None, 20.0, 26.0, 5.0);
+        assert_eq!(position.liquidity.floor(), 2574.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token0, 1, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert_ne!(new_tick, pool.tick);
+        println!("new_tick = {}", new_tick);
+        println!("pool_tick = {}", pool.tick);
+    }
 
+    #[test]
+    fn pool_get_expense_y_out_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
+        let position = Position::new(0, String::new(), Some(10), None, 20.0, 26.0, 5.0);
+        assert_eq!(position.liquidity.floor(), 2574.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert_ne!(new_tick, pool.tick);
+        println!("new_tick = {}", new_tick);
+        println!("pool_tick = {}", pool.tick);
+    }
+    #[test]
+    fn pool_get_expense_x_in_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
+        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        // assert_eq!(position.liquidity.floor(),1007493.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token0, 5, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert_eq!(new_tick, pool.tick);
+        println!("new_tick = {}", new_tick);
+        println!("pool_tick = {}", pool.tick);
+    }
+    #[test]
+    fn pool_get_expense_y_in_within_one_tick() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
+        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        assert_eq!(position.liquidity.floor(), 1007493.0);
+        pool.open_position(position);
+        let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        assert_eq!(new_tick, pool.tick);
+        println!("new_tick = {}", new_tick);
+        println!("pool_tick = {}", pool.tick);
+    }
     #[test]
     fn pool_get_return_x_within_one_tick() {
         let token0 = "first".to_string();
