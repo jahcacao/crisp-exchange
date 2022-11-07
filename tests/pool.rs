@@ -656,8 +656,9 @@ fn swap_out_token1() {
     let balance2_after = contract
         .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
         .unwrap();
-    assert!(balance1_after == amount1);
-    assert!(balance2_after == 0);
+    assert_eq!(balance1_after, amount1);
+    assert_eq!(balance2_after, 0);
+    println!("balance_after = {}, amount1 = {}", balance1_after, amount1);
 }
 
 #[test]
@@ -721,8 +722,8 @@ fn fee_test_out() {
     let balance2_after = contract
         .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
         .unwrap();
-    assert!(balance1_after == amount1);
-    assert!(balance2_after == 0);
+    assert_eq!(balance1_after, amount1);
+    assert_eq!(balance2_after, 0);
     let balance1_lp_after = contract
         .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
         .unwrap();
@@ -732,6 +733,7 @@ fn fee_test_out() {
     let amount2 = (balance2_before as f64 / 1.02) * 0.01;
     assert!(balance1_lp_after == 0);
     assert!((balance2_lp_after as f64 - amount2).abs() < 100.0);
+    println!("balance2_after = {}, amount1 = {}", balance2_after, amount1);
 }
 
 #[test]
