@@ -84,6 +84,11 @@ Returns string containing balances:
 ```
 'near-ft.testnet: 1000000000000, usn-ft.testnet: 100000,'
 ```
+Deposit tokens (We have to interact with fungible token smart-contract. You should already have tokens):
+```
+near call $TOKEN1 storage_deposit '{"account_id": "'$CONTRACT_ID'"}' --accountId $USER_ID --amount 0.0125
+near call $TOKEN1 ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'", "amount": "10000", "msg": ""}' --accountId $USER_ID --depositYocto 1
+```
 Withdraw tokens:
 ```
 near call $CONTRACT_ID withdraw '{"token": "'$TOKEN1'", "amount": 12345}' --accountId $USER_ID
