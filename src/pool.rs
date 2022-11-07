@@ -6,9 +6,7 @@ use near_sdk::{
     AccountId,
 };
 
-use crate::{
-    position::{sqrt_price_to_tick, tick_to_sqrt_price, Position},
-};
+use crate::position::{sqrt_price_to_tick, tick_to_sqrt_price, Position};
 
 #[derive(Clone)]
 pub struct SwapResult {
