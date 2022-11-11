@@ -2,6 +2,7 @@ use crate::*;
 
 #[near_bindgen]
 impl Contract {
+    #[private]
     pub fn nft_mint(&mut self, token_id: TokenId, receiver_id: AccountId, metadata: TokenMetadata) {
         // create a royalty map to store in the token
         let royalty = HashMap::new();
@@ -52,6 +53,7 @@ impl Contract {
         env::log(&nft_mint_log.to_string().as_bytes());
     }
 
+    #[private]
     #[payable]
     pub fn nft_burn(&mut self, token_id: TokenId) {
         assert!(

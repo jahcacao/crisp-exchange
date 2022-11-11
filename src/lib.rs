@@ -72,6 +72,8 @@ pub struct Contract {
     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<NFTContractMetadata>,
+    // number of positions opened
+    pub positions_opened: u128,
 }
 
 #[near_bindgen]
@@ -103,6 +105,7 @@ impl Contract {
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
+            positions_opened: 0,
         }
     }
 
@@ -245,12 +248,10 @@ impl Contract {
         upper_bound_price: f64,
     ) -> u128 {
         assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        let id = self.positions_opened;
+        self.positions_opened += 1;
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        let id = match pool.positions.len() > 0 {
-            true => pool.positions[pool.positions.len() - 1].id + 1,
-            _ => 0,
-        };
         let position = Position::new(
             id,
             account_id.clone(),

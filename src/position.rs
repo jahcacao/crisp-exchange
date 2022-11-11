@@ -59,13 +59,12 @@ impl Position {
         let sqrt_lower_bound_price = (lower_bound_price as f64).sqrt();
         let sqrt_upper_bound_price = (upper_bound_price as f64).sqrt();
         if token0_liquidity.is_some() {
-            assert!(
-                sqrt_price <= sqrt_upper_bound_price,
-                "{}",
-                WRONG_TOKEN_AMOUNT
-            );
             x = token0_liquidity.unwrap() as f64;
-            liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
+            if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
+                liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
+            } else {
+                liquidity = get_liquidity_0(x, sqrt_lower_bound_price, sqrt_upper_bound_price);
+            }
             y = calculate_y(
                 liquidity,
                 sqrt_price,
@@ -73,13 +72,12 @@ impl Position {
                 sqrt_upper_bound_price,
             );
         } else {
-            assert!(
-                sqrt_price >= sqrt_lower_bound_price,
-                "{}",
-                WRONG_TOKEN_AMOUNT
-            );
             y = token1_liquidity.unwrap() as f64;
-            liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
+            if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
+                liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
+            } else {
+                liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_upper_bound_price);
+            }
             x = calculate_x(
                 liquidity,
                 sqrt_price,
@@ -400,7 +398,7 @@ mod test {
             "{}",
             TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
-        assert!(position.liquidity == 3000.0, "{}", LIQUIDITY_DOESNT_MATCH);
+        assert!(position.liquidity == 6600.0, "{}", LIQUIDITY_DOESNT_MATCH);
         assert!(
             position.tick_lower_bound_price == 47960,
             "{}",
@@ -438,7 +436,7 @@ mod test {
             "{}",
             TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
-        assert!(position.liquidity == 25.0, "{}", LIQUIDITY_DOESNT_MATCH);
+        assert!(position.liquidity == 50.0, "{}", LIQUIDITY_DOESNT_MATCH);
         assert!(
             position.tick_lower_bound_price == 47960,
             "{}",
@@ -459,17 +457,5 @@ mod test {
             "{}",
             BAD_SQRT_LOWER_BOUND_PRICE
         );
-    }
-
-    #[should_panic(expected = "Wrong token amount chosen")]
-    #[test]
-    fn open_position_less_than_lower_bound_wrong_token() {
-        let _position = Position::new(0, String::new(), Some(50), None, 121.0, 144.0, 13.0);
-    }
-
-    #[should_panic(expected = "Wrong token amount chosen")]
-    #[test]
-    fn open_position_more_than_upper_bound_wrong_token() {
-        let _position = Position::new(0, String::new(), None, Some(50), 121.0, 144.0, 10.0);
     }
 }
