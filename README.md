@@ -103,7 +103,7 @@ Returns amount I will get:
 ```
 Get expense (how much tokens should I send to get `amount_out` tokens from the pool):
 ```
-near view $CONTRACT_ID get_return '{"pool_id": 0, "token_out": "'$TOKEN1'", "amount_out": 2345}'
+near view $CONTRACT_ID get_expense '{"pool_id": 0, "token_out": "'$TOKEN1'", "amount_out": 2345}'
 ```
 Returns amount I will send:
 ```
