@@ -1,6 +1,6 @@
 # Crisp Exchange
 
-Crisp Exchange is an open-source concentrated liquidity AMM contract on the NEAR blockchain. This repository contains the Rust smart contract as well as the Typescript SDK (@orca-so/whirlpools-sdk) to interact with a deployed program.
+Crisp Exchange is an open-source concentrated liquidity AMM contract on the NEAR blockchain. This repository contains the Rust smart contract.
 
 ## Requirements
 - NEAR 3.4.2

@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    nft::{
+        events::{EventLog, EventLogVariant, NftMintLog},
+        metadata::{Token, TokenId, TokenMetadata},
+    },
+    *,
+};
 
 #[near_bindgen]
 impl Contract {

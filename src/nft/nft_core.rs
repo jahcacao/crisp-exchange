@@ -2,7 +2,12 @@ use crate::*;
 use near_contract_standards::non_fungible_token::core::NonFungibleTokenResolver;
 use near_sdk::{ext_contract, Gas, PromiseResult};
 
-const GAS_FOR_RESOLVE_TRANSFER: Gas = 10_000_000_000_000;
+use super::{
+    events::{EventLog, EventLogVariant, NftTransferLog},
+    internal::{assert_one_yocto, refund_approved_account_ids},
+    metadata::{JsonToken, TokenId},
+};
+
 const GAS_FOR_NFT_ON_TRANSFER: Gas = 25_000_000_000_000;
 
 pub trait NonFungibleTokenCore {
@@ -190,7 +195,7 @@ impl NonFungibleTokenResolver for Contract {
         receiver_id: AccountId,
         token_id: TokenId,
         //we introduce the approval map so we can keep track of what the approvals were before the transfer
-        approved_account_ids: Option<HashMap<AccountId, u64>>,
+        _approved_account_ids: Option<HashMap<AccountId, u64>>,
         //we introduce a memo for logging the transfer event
         // memo: Option<String>,
     ) -> bool {

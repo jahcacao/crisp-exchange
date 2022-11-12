@@ -1,6 +1,11 @@
-use crate::*;
+use crate::{
+    nft::events::{EventLog, EventLogVariant, NftTransferLog},
+    *,
+};
 use near_sdk::CryptoHash;
 use std::mem::size_of;
+
+use super::metadata::{Token, TokenId};
 
 //convert the royalty percentage and amount to pay into a payout (U128)
 pub(crate) fn royalty_to_payout(royalty_percentage: u32, amount_to_pay: Balance) -> U128 {

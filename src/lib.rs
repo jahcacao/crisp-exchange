@@ -3,6 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::{env, near_bindgen};
 use near_sdk::{AccountId, PanicOnDefault};
+use nft::metadata::{NFTContractMetadata, Token, TokenId, TokenMetadata};
 use pool::Pool;
 
 use crate::errors::*;
@@ -20,23 +21,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, CryptoHash, Promise, PromiseOrValue};
 use std::collections::HashMap;
 
-pub use crate::approval::*;
-pub use crate::events::*;
-use crate::internal::*;
-pub use crate::metadata::*;
-pub use crate::mint::*;
-pub use crate::nft_core::*;
-pub use crate::royalty::*;
-
-mod approval;
-mod enumeration;
-mod events;
-mod internal;
-mod metadata;
-mod mint;
-mod nft_core;
-mod royalty;
-mod tests;
+mod nft;
 
 #[derive(BorshSerialize)]
 pub enum StorageKey {

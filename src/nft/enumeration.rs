@@ -1,4 +1,6 @@
-use crate::{nft_core::NonFungibleTokenCore, *};
+use crate::{nft::nft_core::NonFungibleTokenCore, *};
+
+use super::metadata::JsonToken;
 
 #[near_bindgen]
 impl Contract {

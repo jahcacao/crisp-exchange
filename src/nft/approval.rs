@@ -1,5 +1,13 @@
-use crate::*;
+use crate::{
+    nft::internal::{
+        assert_at_least_one_yocto, assert_one_yocto, bytes_for_approved_account_id,
+        refund_approved_account_ids, refund_approved_account_ids_iter, refund_deposit,
+    },
+    *,
+};
 use near_sdk::ext_contract;
+
+use super::metadata::TokenId;
 
 pub const GAS: u64 = 30_000_000_000_000;
 pub trait NonFungibleTokenCore {
