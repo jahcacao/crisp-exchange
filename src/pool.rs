@@ -16,7 +16,7 @@ pub struct SwapResult {
     pub collected_fees: HashMap<AccountId, f64>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SwapDirection {
     Return,
     Expense,
@@ -50,7 +50,7 @@ impl Pool {
             liquidity: 0.0,
             sqrt_price: price.sqrt(),
             positions: vec![],
-            tick: tick,
+            tick,
             protocol_fee,
             rewards,
         }
@@ -108,9 +108,7 @@ impl Pool {
         map: &mut HashMap<AccountId, f64>,
     ) {
         for position in &self.positions {
-            if position.sqrt_lower_bound_price <= sqrt_price
-                && position.sqrt_upper_bound_price >= sqrt_price
-            {
+            if position.is_active(sqrt_price) {
                 let share =
                     (position.liquidity / liquidity) * amount * (self.rewards as f64 / 10000.0);
                 let old_share = map.get(&position.owner_id).unwrap_or(&0.0);
@@ -125,36 +123,18 @@ impl Pool {
         token: &AccountId,
         direction: SwapDirection,
     ) -> bool {
-        if direction == SwapDirection::Expense {
-            if token.to_string() == self.token1 {
+        for position in &self.positions {
+            if direction == SwapDirection::Expense && *token == self.token1
+                || direction == SwapDirection::Return && *token == self.token0
+            {
                 // price goes down
-                for position in &self.positions {
-                    if position.sqrt_upper_bound_price < sqrt_price {
-                        return true;
-                    }
+                if position.sqrt_upper_bound_price < sqrt_price {
+                    return true;
                 }
             } else {
                 // price goes up
-                for position in &self.positions {
-                    if position.sqrt_lower_bound_price > sqrt_price {
-                        return true;
-                    }
-                }
-            }
-        } else {
-            if token.to_string() == self.token1 {
-                // price goes up
-                for position in &self.positions {
-                    if position.sqrt_lower_bound_price > sqrt_price {
-                        return true;
-                    }
-                }
-            } else {
-                // price goes down
-                for position in &self.positions {
-                    if position.sqrt_upper_bound_price < sqrt_price {
-                        return true;
-                    }
+                if position.sqrt_lower_bound_price > sqrt_price {
+                    return true;
                 }
             }
         }
@@ -164,9 +144,7 @@ impl Pool {
     fn calculate_liquidity_within_tick(&self, sqrt_price: f64) -> f64 {
         let mut liquidity = 0.0;
         for position in &self.positions {
-            if position.sqrt_lower_bound_price <= sqrt_price
-                && sqrt_price <= position.sqrt_upper_bound_price
-            {
+            if position.is_active(sqrt_price) {
                 liquidity += position.liquidity;
             }
         }
@@ -213,7 +191,7 @@ impl Pool {
             }
         }
         *sqrt_price = new_sqrt_price;
-        return amount_in.abs();
+        amount_in.abs()
     }
 
     fn get_amount_out_within_tick(
@@ -256,7 +234,7 @@ impl Pool {
             }
         }
         *sqrt_price = new_sqrt_price;
-        return amount_out.abs();
+        amount_out.abs()
     }
 
     pub fn get_sqrt_price(&self) -> f64 {
@@ -268,9 +246,7 @@ impl Pool {
     }
 
     pub fn open_position(&mut self, position: Position) {
-        if position.sqrt_lower_bound_price <= self.sqrt_price
-            && position.sqrt_upper_bound_price >= self.sqrt_price
-        {
+        if position.is_active(self.sqrt_price) {
             self.liquidity += position.liquidity;
         }
         self.positions.push(position);
@@ -278,9 +254,7 @@ impl Pool {
 
     pub fn close_position(&mut self, id: usize) {
         let position = &self.positions[id];
-        if position.sqrt_lower_bound_price <= self.sqrt_price
-            && position.sqrt_upper_bound_price >= self.sqrt_price
-        {
+        if position.is_active(self.sqrt_price) {
             self.liquidity -= position.liquidity;
         }
         self.positions.remove(id);

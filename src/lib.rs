@@ -30,40 +30,29 @@ pub enum StorageKey {
     TokensById,
     TokenMetadataById,
     NFTContractMetadata,
-    TokensPerType,
-    TokensPerTypeInner { token_type_hash: CryptoHash },
-    TokenTypesLocked,
 }
 
-/// This spec can be treated like a version of the standard.
 pub const NFT_METADATA_SPEC: &str = "1.0.0";
-/// This is the name of the NFT standard we're using
 pub const NFT_STANDARD_NAME: &str = "nep171";
+pub const BASIS_POINT: f64 = 1.0001;
+pub const BASIS_POINT_TO_PERCENT: f64 = 10000.0;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    /// Account of the owner.
     pub owner_id: AccountId,
-    /// List of all the pools.
     pub pools: Vec<Pool>,
-    //  Accounts registered, keeping track all the amounts deposited, storage and more.
+    //  Accounts registered, keeping track all the amounts deposited
     pub accounts: AccountsInfo,
-    //keeps track of all the token IDs for a given account
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-    //keeps track of the token struct for a given token ID
     pub tokens_by_id: LookupMap<TokenId, Token>,
-    //keeps track of the token metadata for a given token ID
     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
-    //keeps track of the metadata for the contract
     pub metadata: LazyOption<NFTContractMetadata>,
-    // number of positions opened
     pub positions_opened: u128,
 }
 
 #[near_bindgen]
 impl Contract {
-    #[private]
     #[init]
     pub fn new(owner_id: AccountId) -> Self {
         let metadata = NFTContractMetadata {
@@ -76,7 +65,7 @@ impl Contract {
             reference_hash: None,
         };
         Self {
-            owner_id: owner_id.clone(),
+            owner_id,
             pools: Vec::new(),
             accounts: AccountsInfo {
                 accounts_info: UnorderedMap::new(b"a"),
@@ -110,27 +99,30 @@ impl Contract {
             protocol_fee,
             rewards,
         ));
-        return self.pools.len() - 1;
+        self.pools.len() - 1
     }
 
     pub fn get_pools(&self) -> Vec<Pool> {
         self.pools.clone()
     }
 
-    pub fn get_pool(&self, pool_id: usize) -> Option<&Pool> {
-        if pool_id >= self.pools.len() {
-            None
-        } else {
-            Some(&self.pools[pool_id])
-        }
+    fn assert_pool_exists(&self, pool_id: usize) {
+        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+    }
+
+    fn assert_account_owns_nft(account_id: &AccountId, nft_owner: &AccountId) {
+        assert!(account_id == nft_owner);
+    }
+
+    pub fn get_pool(&self, pool_id: usize) -> Pool {
+        self.assert_pool_exists(pool_id);
+        self.pools[pool_id].clone()
     }
 
     pub fn get_balance(&self, account_id: &AccountId, token: &AccountId) -> Option<u128> {
         match self.accounts.get_balance(account_id) {
-            None => return Some(0),
-            Some(balance) => {
-                return balance.get(token);
-            }
+            None => Some(0),
+            Some(balance) => balance.get(token),
         }
     }
 
@@ -140,34 +132,31 @@ impl Contract {
             for (token, amount) in balance.iter() {
                 result += &format!("{token}: {amount}, ");
             }
-            return result;
+            result
         } else {
-            return String::new();
+            String::new()
         }
     }
 
     pub fn withdraw(&mut self, token: AccountId, amount: u128) {
         let account_id = env::predecessor_account_id();
-        self.accounts.withdraw(account_id, token, amount);
+        self.accounts.withdraw(&account_id, &token, amount);
     }
 
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> f64 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
-        let pool = &self.pools[pool_id];
+        let pool = self.get_pool(pool_id);
         let swap_result = pool.get_swap_result(token_in, amount_in, pool::SwapDirection::Return);
         swap_result.amount
     }
 
     pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: u128) -> f64 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
-        let pool = &self.pools[pool_id];
+        let pool = self.get_pool(pool_id);
         let swap_result = pool.get_swap_result(token_out, amount_out, pool::SwapDirection::Expense);
         swap_result.amount
     }
 
     pub fn get_price(&self, pool_id: usize) -> f64 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
-        let pool = &self.pools[pool_id];
+        let pool = self.get_pool(pool_id);
         let sqrt_price = pool.get_sqrt_price();
         sqrt_price * sqrt_price
     }
@@ -179,7 +168,7 @@ impl Contract {
         amount_out: u128,
         token_out: AccountId,
     ) -> u128 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         self.accounts
@@ -192,7 +181,7 @@ impl Contract {
             .decrease_balance(&account_id, &token_in, swap_result.amount as u128);
         let fees_amount = (swap_result.amount as f64)
             * (pool.protocol_fee as f64 + pool.rewards as f64)
-            / 10000.0;
+            / BASIS_POINT_TO_PERCENT;
         self.accounts
             .decrease_balance(&account_id, &token_in, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
@@ -206,7 +195,7 @@ impl Contract {
         amount_in: u128,
         token_out: AccountId,
     ) -> u128 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         self.accounts
@@ -216,8 +205,8 @@ impl Contract {
             .apply_collected_fees(&swap_result.collected_fees, &token_out);
         self.accounts
             .increase_balance(&account_id, &token_out, swap_result.amount as u128);
-        let fees_amount =
-            swap_result.amount * (pool.protocol_fee as f64 + pool.rewards as f64) / 10000.0;
+        let fees_amount = swap_result.amount * (pool.protocol_fee as f64 + pool.rewards as f64)
+            / BASIS_POINT_TO_PERCENT;
         self.accounts
             .decrease_balance(&account_id, &token_out, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
@@ -232,7 +221,7 @@ impl Contract {
         lower_bound_price: f64,
         upper_bound_price: f64,
     ) -> u128 {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        self.assert_pool_exists(pool_id);
         let id = self.positions_opened;
         self.positions_opened += 1;
         let pool = &mut self.pools[pool_id];
@@ -259,15 +248,15 @@ impl Contract {
         pool.open_position(position.clone());
         let metadata = TokenMetadata::new(pool_id, &position);
         self.nft_mint(id.to_string(), account_id.clone(), metadata);
-        return id;
+        id
     }
 
     pub fn close_position(&mut self, pool_id: usize, id: u128) -> bool {
-        assert!(pool_id < self.pools.len(), "{}", BAD_POOL_ID);
+        self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         let token = self.tokens_by_id.get(&id.to_string()).unwrap();
-        assert!(account_id == token.owner_id);
+        Self::assert_account_owns_nft(&account_id, &token.owner_id);
         for (i, position) in &mut pool.positions.iter().enumerate() {
             if position.id == id {
                 let token0 = &pool.token0;
@@ -283,9 +272,6 @@ impl Contract {
                 return true;
             }
         }
-        return false;
+        false
     }
 }
-
-// front
-// decimals

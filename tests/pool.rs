@@ -18,7 +18,7 @@ fn create_pool() {
         0,
         0,
     );
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.token0 == accounts(0).to_string());
     assert!(pool.token1 == accounts(1).to_string());
     assert!(pool.liquidity == 0.0);
@@ -65,7 +65,7 @@ fn open_position_is_correct() {
     assert_eq!(balance, 27500);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(50), None, 25.0, 121.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 5500.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -116,7 +116,7 @@ fn open_position_less_than_lower_bound() {
     assert_eq!(balance, 3000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(50), None, 121.0, 144.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -167,7 +167,7 @@ fn open_position_more_than_upper_bound() {
     assert_eq!(balance, 3000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(50), 64.0, 81.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -219,7 +219,7 @@ fn open_two_positions() {
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(50), 64.0, 121.0);
     contract.open_position(0, Some(100), None, 49.0, 144.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 6025.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -264,7 +264,7 @@ fn open_three_positions() {
     contract.open_position(0, None, Some(50), 64.0, 121.0);
     contract.open_position(0, Some(100), None, 49.0, 144.0);
     contract.open_position(0, None, Some(150), 81.0, 169.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 6175.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -316,7 +316,7 @@ fn open_ten_positions() {
     contract.open_position(0, Some(100), None, 49.0, 144.0);
     contract.open_position(0, None, Some(50), 64.0, 121.0);
     contract.open_position(0, Some(500), None, 120.0, 130.0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 12200.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -360,7 +360,7 @@ fn close_position() {
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(50), 64.0, 121.0);
     contract.close_position(0, 0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -413,13 +413,13 @@ fn close_two_position() {
     contract.open_position(0, Some(100), None, 49.0, 144.0);
     contract.open_position(0, Some(100), None, 49.0, 144.0);
     contract.close_position(0, 1);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 6000.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
     assert!(pool.positions.len() == 1);
     contract.close_position(0, 0);
-    let pool = contract.get_pool(0).unwrap();
+    let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);

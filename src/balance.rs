@@ -24,24 +24,24 @@ impl AccountsInfo {
     }
 
     pub fn deposit_ft(&mut self, account_id: &AccountId, token_in: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.get_balance(&account_id.to_string()) {
+        if let Some(mut balance) = self.get_balance(account_id) {
             let current_value = balance.get(token_in).unwrap_or(0);
             let new_value = current_value + amount;
-            balance.insert(&token_in.to_string(), &new_value);
-            self.accounts_info.insert(&account_id.to_string(), &balance);
+            balance.insert(token_in, &new_value);
+            self.accounts_info.insert(account_id, &balance);
         } else {
             let mut balance = UnorderedMap::new(account_id.clone().into_bytes());
             balance.insert(&token_in.to_string(), &amount);
-            self.accounts_info.insert(&account_id.to_string(), &balance);
+            self.accounts_info.insert(account_id, &balance);
         }
     }
 
-    pub fn withdraw(&mut self, account_id: AccountId, token: AccountId, amount: u128) {
-        if let Some(mut balance) = self.get_balance(&account_id) {
-            if let Some(current_amount) = balance.get(&token.to_string()) {
+    pub fn withdraw(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
+        if let Some(mut balance) = self.get_balance(account_id) {
+            if let Some(current_amount) = balance.get(token) {
                 assert!(amount <= current_amount, "{}", NOT_ENOUGH_TOKENS);
-                balance.insert(&token, &(current_amount - amount));
-                self.accounts_info.insert(&account_id, &balance);
+                balance.insert(token, &(current_amount - amount));
+                self.accounts_info.insert(account_id, &balance);
                 ext_fungible_token::ft_transfer(
                     account_id.to_string(),
                     U128(amount),
@@ -57,11 +57,11 @@ impl AccountsInfo {
     }
 
     pub fn decrease_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.get_balance(&account_id) {
-            if let Some(current_amount) = balance.get(&token) {
+        if let Some(mut balance) = self.get_balance(account_id) {
+            if let Some(current_amount) = balance.get(token) {
                 assert!(amount <= current_amount, "{}", NOT_ENOUGH_TOKENS);
-                balance.insert(&token, &(current_amount - amount));
-                self.accounts_info.insert(&account_id, &balance);
+                balance.insert(token, &(current_amount - amount));
+                self.accounts_info.insert(account_id, &balance);
             }
         } else {
             panic!("{}", NOT_ENOUGH_TOKENS);
@@ -69,13 +69,13 @@ impl AccountsInfo {
     }
 
     pub fn increase_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.get_balance(&account_id) {
-            if let Some(current_amount) = balance.get(&token) {
-                balance.insert(&token, &(current_amount + amount));
-                self.accounts_info.insert(&account_id, &balance);
+        if let Some(mut balance) = self.get_balance(account_id) {
+            if let Some(current_amount) = balance.get(token) {
+                balance.insert(token, &(current_amount + amount));
+                self.accounts_info.insert(account_id, &balance);
             } else {
-                balance.insert(&token, &amount);
-                self.accounts_info.insert(&account_id, &balance);
+                balance.insert(token, &amount);
+                self.accounts_info.insert(account_id, &balance);
             }
         } else {
             panic!("{}", YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL);
@@ -87,7 +87,7 @@ impl AccountsInfo {
         collected_fees: &HashMap<AccountId, f64>,
         token: &AccountId,
     ) {
-        for (account_id, amount) in collected_fees.into_iter() {
+        for (account_id, amount) in collected_fees.iter() {
             self.increase_balance(account_id, token, *amount as u128);
         }
     }
