@@ -18,6 +18,9 @@ pub struct Position {
     pub tick_upper_bound_price: i32,
     pub sqrt_lower_bound_price: f64, // p_a
     pub sqrt_upper_bound_price: f64, // p_b
+    pub is_active: bool,
+    pub last_update: u64,
+    pub rewards_for_time: u64,
 }
 
 impl Default for Position {
@@ -32,6 +35,9 @@ impl Default for Position {
             tick_upper_bound_price: 0,
             sqrt_lower_bound_price: 0.0,
             sqrt_upper_bound_price: 0.0,
+            is_active: false,
+            last_update: 0,
+            rewards_for_time: 0,
         }
     }
 }
@@ -97,10 +103,13 @@ impl Position {
             tick_upper_bound_price,
             sqrt_lower_bound_price,
             sqrt_upper_bound_price,
+            is_active: true,
+            last_update: 0,
+            rewards_for_time: 0,
         }
     }
 
-    pub fn refresh(&mut self, sqrt_price: f64) {
+    pub fn refresh(&mut self, sqrt_price: f64, current_timestamp: u64) {
         self.token0_real_liquidity = calculate_x(
             self.liquidity,
             sqrt_price,
@@ -113,6 +122,11 @@ impl Position {
             self.sqrt_lower_bound_price,
             self.sqrt_upper_bound_price,
         );
+        if self.is_active {
+            self.rewards_for_time = current_timestamp - self.last_update;
+        }
+        self.is_active = self.is_active(sqrt_price);
+        self.last_update = current_timestamp;
     }
 
     pub fn is_active(&self, sqrt_price: f64) -> bool {

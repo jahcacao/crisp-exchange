@@ -193,6 +193,15 @@ impl Contract {
         //we then add the token to the receiver_id's set
         self.internal_add_token_to_owner(receiver_id, token_id);
 
+        let id = token_id.parse::<u128>().unwrap();
+        for pool in &mut self.pools {
+            for position in &mut pool.positions {
+                if id == position.id {
+                    position.owner_id = receiver_id.to_string();
+                }
+            }
+        }
+
         //we create a new token struct
         let new_token = Token {
             owner_id: receiver_id.clone(),

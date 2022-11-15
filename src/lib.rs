@@ -185,6 +185,8 @@ impl Contract {
         self.accounts
             .decrease_balance(&account_id, &token_in, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         swap_result.amount as u128
     }
 
@@ -210,6 +212,8 @@ impl Contract {
         self.accounts
             .decrease_balance(&account_id, &token_out, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         swap_result.amount as u128
     }
 
@@ -246,6 +250,8 @@ impl Contract {
             position.token1_real_liquidity as u128,
         );
         pool.open_position(position.clone());
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         let metadata = TokenMetadata::new(pool_id, &position);
         self.nft_mint(id.to_string(), account_id.clone(), metadata);
         id
@@ -255,14 +261,15 @@ impl Contract {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         let token = self.tokens_by_id.get(&id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
         for (i, position) in &mut pool.positions.iter().enumerate() {
             if position.id == id {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
-                let mut position = position.clone();
-                position.refresh(pool.sqrt_price);
+                let position = position.clone();
                 let amount0 = position.token0_real_liquidity as u128;
                 let amount1 = position.token1_real_liquidity as u128;
                 self.accounts.increase_balance(&account_id, token0, amount0);

@@ -245,6 +245,12 @@ impl Pool {
         self.liquidity = self.calculate_liquidity_within_tick(self.sqrt_price);
     }
 
+    pub fn refresh_positions(&mut self, current_timestamp: u64) {
+        for position in &mut self.positions {
+            position.refresh(self.sqrt_price, current_timestamp);
+        }
+    }
+
     pub fn open_position(&mut self, position: Position) {
         if position.is_active(self.sqrt_price) {
             self.liquidity += position.liquidity;
