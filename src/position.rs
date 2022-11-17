@@ -1,5 +1,6 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
+    json_types::U128,
     serde::Serialize,
     AccountId,
 };
@@ -18,6 +19,9 @@ pub struct Position {
     pub tick_upper_bound_price: i32,
     pub sqrt_lower_bound_price: f64, // p_a
     pub sqrt_upper_bound_price: f64, // p_b
+    pub is_active: bool,
+    pub last_update: u64,
+    pub rewards_for_time: u64,
 }
 
 impl Default for Position {
@@ -32,6 +36,9 @@ impl Default for Position {
             tick_upper_bound_price: 0,
             sqrt_lower_bound_price: 0.0,
             sqrt_upper_bound_price: 0.0,
+            is_active: false,
+            last_update: 0,
+            rewards_for_time: 0,
         }
     }
 }
@@ -40,8 +47,8 @@ impl Position {
     pub fn new(
         id: u128,
         owner_id: AccountId,
-        token0_liquidity: Option<u128>,
-        token1_liquidity: Option<u128>,
+        token0_liquidity: Option<U128>,
+        token1_liquidity: Option<U128>,
         lower_bound_price: f64,
         upper_bound_price: f64,
         sqrt_price: f64,
@@ -57,7 +64,8 @@ impl Position {
         let sqrt_lower_bound_price = (lower_bound_price as f64).sqrt();
         let sqrt_upper_bound_price = (upper_bound_price as f64).sqrt();
         if token0_liquidity.is_some() {
-            x = token0_liquidity.unwrap() as f64;
+            let token0_liquidity: u128 = token0_liquidity.unwrap().into();
+            x = token0_liquidity as f64;
             if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
                 liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
             } else {
@@ -70,7 +78,8 @@ impl Position {
                 sqrt_upper_bound_price,
             );
         } else {
-            y = token1_liquidity.unwrap() as f64;
+            let token1_liquidity: u128 = token1_liquidity.unwrap().into();
+            y = token1_liquidity as f64;
             if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
                 liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
             } else {
@@ -97,10 +106,13 @@ impl Position {
             tick_upper_bound_price,
             sqrt_lower_bound_price,
             sqrt_upper_bound_price,
+            is_active: true,
+            last_update: 0,
+            rewards_for_time: 0,
         }
     }
 
-    pub fn refresh(&mut self, sqrt_price: f64) {
+    pub fn refresh(&mut self, sqrt_price: f64, current_timestamp: u64) {
         self.token0_real_liquidity = calculate_x(
             self.liquidity,
             sqrt_price,
@@ -113,6 +125,11 @@ impl Position {
             self.sqrt_lower_bound_price,
             self.sqrt_upper_bound_price,
         );
+        if self.is_active {
+            self.rewards_for_time = current_timestamp - self.last_update;
+        }
+        self.is_active = self.is_active(sqrt_price);
+        self.last_update = current_timestamp;
     }
 
     pub fn is_active(&self, sqrt_price: f64) -> bool {
@@ -347,7 +364,7 @@ mod test {
     }
     #[test]
     fn open_position() {
-        let position = Position::new(0, String::new(), Some(50), None, 25.0, 121.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 25.0, 121.0, 10.0);
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
@@ -385,7 +402,7 @@ mod test {
 
     #[test]
     fn open_position_less_than_lower_bound() {
-        let position = Position::new(0, String::new(), Some(50), None, 121.0, 144.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 121.0, 144.0, 10.0);
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
@@ -423,7 +440,7 @@ mod test {
 
     #[test]
     fn open_position_more_than_upper_bound() {
-        let position = Position::new(0, String::new(), None, Some(50), 121.0, 144.0, 13.0);
+        let position = Position::new(0, String::new(), None, Some(U128(50)), 121.0, 144.0, 13.0);
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(

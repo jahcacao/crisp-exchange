@@ -15,10 +15,8 @@ fn test_balance_after_deposit() {
         accounts(1),
         U128(123456),
     );
-    let balance = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    assert_eq!(balance, 123456);
+    let balance = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
+    assert_eq!(balance, U128(123456));
 }
 
 #[test]
@@ -39,10 +37,8 @@ fn test_balance_after_two_deposits() {
         accounts(1),
         U128(20000),
     );
-    let balance = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    assert_eq!(balance, 30000);
+    let balance = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
+    assert_eq!(balance, U128(30000));
 }
 
 #[test]
@@ -63,10 +59,8 @@ fn test_balance_after_withdraw() {
         accounts(1),
         U128(10000),
     );
-    let balance = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    assert_eq!(balance, 0);
+    let balance = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
+    assert_eq!(balance, U128(0));
 }
 
 #[test]
@@ -139,20 +133,12 @@ fn test_balance_after_two_deposits_two_accounts() {
         accounts(2),
         U128(40000),
     );
-    let balance1 = contract
-        .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
-        .unwrap();
-    let balance2 = contract
-        .get_balance(&accounts(0).to_string(), &accounts(2).to_string())
-        .unwrap();
-    let balance3 = contract
-        .get_balance(&accounts(3).to_string(), &accounts(1).to_string())
-        .unwrap();
-    let balance4 = contract
-        .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
-        .unwrap();
-    assert_eq!(balance1, 10000);
-    assert_eq!(balance2, 20000);
-    assert_eq!(balance3, 30000);
-    assert_eq!(balance4, 40000);
+    let balance1 = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
+    let balance2 = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
+    let balance3 = contract.get_balance(&accounts(3).to_string(), &accounts(1).to_string());
+    let balance4 = contract.get_balance(&accounts(3).to_string(), &accounts(2).to_string());
+    assert_eq!(balance1, U128(10000));
+    assert_eq!(balance2, U128(20000));
+    assert_eq!(balance3, U128(30000));
+    assert_eq!(balance4, U128(40000));
 }

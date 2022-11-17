@@ -245,6 +245,12 @@ impl Pool {
         self.liquidity = self.calculate_liquidity_within_tick(self.sqrt_price);
     }
 
+    pub fn refresh_positions(&mut self, current_timestamp: u64) {
+        for position in &mut self.positions {
+            position.refresh(self.sqrt_price, current_timestamp);
+        }
+    }
+
     pub fn open_position(&mut self, position: Position) {
         if position.is_active(self.sqrt_price) {
             self.liquidity += position.liquidity;
@@ -274,7 +280,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
         assert!(position.liquidity == 376.3440860215054);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 10, SwapDirection::Expense);
@@ -288,7 +294,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
         assert!(position.liquidity == 376.3440860215054);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
@@ -302,7 +308,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
@@ -316,7 +322,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token1, 1000, SwapDirection::Return);
@@ -329,7 +335,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(10), None, 20.0, 26.0, 5.0);
+        let position = Position::new(0, String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
         assert_eq!(position.liquidity.floor(), 2574.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 1, SwapDirection::Expense);
@@ -344,7 +350,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(10), None, 20.0, 26.0, 5.0);
+        let position = Position::new(0, String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
         assert_eq!(position.liquidity.floor(), 2574.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
@@ -358,7 +364,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
         // assert_eq!(position.liquidity.floor(),1007493.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 5, SwapDirection::Expense);
@@ -372,7 +378,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
         assert_eq!(position.liquidity.floor(), 1007493.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
@@ -386,7 +392,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
         let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
@@ -398,7 +404,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(500), None, 99.0, 101.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
         pool.open_position(position);
         let exp = pool.get_swap_result(&token1, 1, SwapDirection::Return);
         let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
@@ -432,7 +438,7 @@ mod test {
             let position = Position::new(
                 0,
                 String::new(),
-                Some(i * 100),
+                Some(U128(i * 100)),
                 None,
                 100.0 - i as f64,
                 100.0 + i as f64,
@@ -449,7 +455,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
         pool.open_position(position);
         let result = pool.get_swap_result(&token0, 1, SwapDirection::Return);
@@ -463,7 +469,7 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(50), None, 1.0, 10000.0, 7.0);
+        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
         assert!(position.liquidity == 376.3440860215054);
         pool.open_position(position);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
@@ -480,7 +486,7 @@ mod test {
         let position = Position::new(
             0,
             "user.near".to_string(),
-            Some(50),
+            Some(U128(50)),
             None,
             1.0,
             10000.0,
@@ -501,7 +507,7 @@ mod test {
         let position = Position::new(
             0,
             "user.near".to_string(),
-            Some(50),
+            Some(U128(50)),
             None,
             1.0,
             10000.0,
@@ -523,7 +529,7 @@ mod test {
             let position = Position::new(
                 0,
                 "user.near".to_string(),
-                Some(50),
+                Some(U128(50)),
                 None,
                 1.0,
                 10000.0,

@@ -119,10 +119,15 @@ impl Contract {
         self.pools[pool_id].clone()
     }
 
-    pub fn get_balance(&self, account_id: &AccountId, token: &AccountId) -> Option<u128> {
-        match self.accounts.get_balance(account_id) {
+    pub fn get_balance(&self, account_id: &AccountId, token: &AccountId) -> U128 {
+        let balance = match self.accounts.get_balance(account_id) {
             None => Some(0),
             Some(balance) => balance.get(token),
+        };
+        if let Some(amount) = balance {
+            amount.into()
+        } else {
+            U128(0)
         }
     }
 
@@ -138,21 +143,24 @@ impl Contract {
         }
     }
 
-    pub fn withdraw(&mut self, token: AccountId, amount: u128) {
+    pub fn withdraw(&mut self, token: AccountId, amount: U128) {
         let account_id = env::predecessor_account_id();
+        let amount: u128 = amount.into();
         self.accounts.withdraw(&account_id, &token, amount);
     }
 
-    pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: u128) -> f64 {
+    pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: U128) -> U128 {
         let pool = self.get_pool(pool_id);
+        let amount_in: u128 = amount_in.into();
         let swap_result = pool.get_swap_result(token_in, amount_in, pool::SwapDirection::Return);
-        swap_result.amount
+        (swap_result.amount as u128).into()
     }
 
-    pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: u128) -> f64 {
+    pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: U128) -> U128 {
         let pool = self.get_pool(pool_id);
+        let amount_out: u128 = amount_out.into();
         let swap_result = pool.get_swap_result(token_out, amount_out, pool::SwapDirection::Expense);
-        swap_result.amount
+        (swap_result.amount as u128).into()
     }
 
     pub fn get_price(&self, pool_id: usize) -> f64 {
@@ -165,12 +173,13 @@ impl Contract {
         &mut self,
         pool_id: usize,
         token_in: AccountId,
-        amount_out: u128,
+        amount_out: U128,
         token_out: AccountId,
-    ) -> u128 {
+    ) -> U128 {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let amount_out: u128 = amount_out.into();
         self.accounts
             .increase_balance(&account_id, &token_out, amount_out);
         let swap_result =
@@ -185,19 +194,22 @@ impl Contract {
         self.accounts
             .decrease_balance(&account_id, &token_in, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
-        swap_result.amount as u128
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
+        (swap_result.amount as u128).into()
     }
 
     pub fn swap_in(
         &mut self,
         pool_id: usize,
         token_in: AccountId,
-        amount_in: u128,
+        amount_in: U128,
         token_out: AccountId,
-    ) -> u128 {
+    ) -> U128 {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let amount_in: u128 = amount_in.into();
         self.accounts
             .decrease_balance(&account_id, &token_in, amount_in);
         let swap_result = pool.get_swap_result(&token_out, amount_in, pool::SwapDirection::Return);
@@ -210,14 +222,16 @@ impl Contract {
         self.accounts
             .decrease_balance(&account_id, &token_out, fees_amount as u128);
         pool.apply_swap_result(&swap_result);
-        swap_result.amount as u128
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
+        (swap_result.amount as u128).into()
     }
 
     pub fn open_position(
         &mut self,
         pool_id: usize,
-        token0_liquidity: Option<u128>,
-        token1_liquidity: Option<u128>,
+        token0_liquidity: Option<U128>,
+        token1_liquidity: Option<U128>,
         lower_bound_price: f64,
         upper_bound_price: f64,
     ) -> u128 {
@@ -246,6 +260,8 @@ impl Contract {
             position.token1_real_liquidity as u128,
         );
         pool.open_position(position.clone());
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         let metadata = TokenMetadata::new(pool_id, &position);
         self.nft_mint(id.to_string(), account_id.clone(), metadata);
         id
@@ -255,14 +271,15 @@ impl Contract {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
+        let current_timestamp = env::block_timestamp();
+        pool.refresh_positions(current_timestamp);
         let token = self.tokens_by_id.get(&id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
         for (i, position) in &mut pool.positions.iter().enumerate() {
             if position.id == id {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
-                let mut position = position.clone();
-                position.refresh(pool.sqrt_price);
+                let position = position.clone();
                 let amount0 = position.token0_real_liquidity as u128;
                 let amount1 = position.token1_real_liquidity as u128;
                 self.accounts.increase_balance(&account_id, token0, amount0);
