@@ -58,6 +58,7 @@ impl Position {
             "{}",
             INCORRECT_TOKEN
         );
+        assert!(lower_bound_price < upper_bound_price);
         let liquidity;
         let x;
         let y;

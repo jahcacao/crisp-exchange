@@ -11,7 +11,7 @@ impl FungibleTokenReceiver for Contract {
         &mut self,
         sender_id: ValidAccountId,
         amount: U128,
-        _msg: String,
+        msg: String,
     ) -> PromiseOrValue<U128> {
         let token_in = env::predecessor_account_id();
         self.accounts
