@@ -39,7 +39,11 @@ impl AccountsInfo {
     pub fn withdraw(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
         if let Some(mut balance) = self.get_balance(account_id) {
             if let Some(current_amount) = balance.get(token) {
-                assert!(amount <= current_amount, "{}", NOT_ENOUGH_TOKENS);
+                let message = format!(
+                    "Not enough tokens. You want to withdraw {} of {} but only have {}",
+                    amount, token, current_amount
+                );
+                assert!(amount <= current_amount, "{}", message);
                 balance.insert(token, &(current_amount - amount));
                 self.accounts_info.insert(account_id, &balance);
                 ext_fungible_token::ft_transfer(
@@ -59,12 +63,17 @@ impl AccountsInfo {
     pub fn decrease_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
         if let Some(mut balance) = self.get_balance(account_id) {
             if let Some(current_amount) = balance.get(token) {
-                assert!(amount <= current_amount, "{}", NOT_ENOUGH_TOKENS);
+                let message = format!("Not enough tokens. You want to decrease your balance on {} of {} but only have {}", amount, token, current_amount);
+                assert!(amount <= current_amount, "{}", message);
                 balance.insert(token, &(current_amount - amount));
                 self.accounts_info.insert(account_id, &balance);
             }
         } else {
-            panic!("{}", NOT_ENOUGH_TOKENS);
+            let message = format!(
+                "Not enough tokens. You want to decrease your balance on {} of {} but only have {}",
+                amount, token, 0
+            );
+            panic!("{}", message);
         }
     }
 

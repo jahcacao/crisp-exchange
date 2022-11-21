@@ -67,7 +67,12 @@ impl Position {
         if token0_liquidity.is_some() {
             let token0_liquidity: u128 = token0_liquidity.unwrap().into();
             x = token0_liquidity as f64;
-            if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
+            assert!(x > 0.0, "token0 liqudity cannot be 0");
+            assert!(
+                sqrt_price <= sqrt_upper_bound_price,
+                "send token1 liquidity instead of token0"
+            );
+            if sqrt_lower_bound_price < sqrt_price && sqrt_price < sqrt_upper_bound_price {
                 liquidity = get_liquidity_0(x, sqrt_price, sqrt_upper_bound_price);
             } else {
                 liquidity = get_liquidity_0(x, sqrt_lower_bound_price, sqrt_upper_bound_price);
@@ -81,6 +86,11 @@ impl Position {
         } else {
             let token1_liquidity: u128 = token1_liquidity.unwrap().into();
             y = token1_liquidity as f64;
+            assert!(y > 0.0, "token1 liqudity cannot be 0");
+            assert!(
+                sqrt_price >= sqrt_lower_bound_price,
+                "send token0 liquidity instead of token1"
+            );
             if sqrt_lower_bound_price <= sqrt_price && sqrt_price <= sqrt_upper_bound_price {
                 liquidity = get_liquidity_1(y, sqrt_lower_bound_price, sqrt_price);
             } else {
@@ -475,5 +485,83 @@ mod test {
             "{}",
             _BAD_SQRT_LOWER_BOUND_PRICE
         );
+    }
+
+    #[should_panic(expected = "token0 liqudity cannot be 0")]
+    #[test]
+    fn open_position_wrong_order_x_zero() {
+        let position = Position::new(0, String::new(), Some(U128(0)), None, 121.0, 144.0, 11.5);
+    }
+
+    #[should_panic(expected = "send token1 liquidity instead of token0")]
+    #[test]
+    fn open_position_wrong_order_x_not_zero_higher_than_upper_bound() {
+        let position = Position::new(0, String::new(), Some(U128(1)), None, 121.0, 144.0, 13.0);
+    }
+
+    #[should_panic(expected = "token1 liqudity cannot be 0")]
+    #[test]
+    fn open_position_wrong_order_y_zero() {
+        let position = Position::new(0, String::new(), None, Some(U128(0)), 121.0, 144.0, 11.5);
+    }
+
+    #[should_panic(expected = "send token0 liquidity instead of token1")]
+    #[test]
+    fn open_position_wrong_order_y_not_zero_higher_than_upper_bound() {
+        let position = Position::new(0, String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
+    }
+
+    #[test]
+    fn open_position1() {
+        let position = Position::new(
+            0,
+            String::new(),
+            Some(U128(1000000000000000000)),
+            None,
+            900.0,
+            1100.0,
+            1000.0_f64.sqrt(),
+        );
+        println!("token0 liquidity = {}", position.token0_real_liquidity);
+        println!("token1 liquidity = {}", position.token1_real_liquidity);
+        println!("liquidity = {}", position.liquidity);
+        println!("lower = {}", position.sqrt_lower_bound_price);
+        println!("upper = {}", position.sqrt_upper_bound_price);
+    }
+
+    #[test]
+    fn open_position2() {
+        let position = Position::new(
+            0,
+            String::new(),
+            Some(U128(1000000000000000000000000)),
+            None,
+            900.0,
+            1100.0,
+            1000.0_f64.sqrt(),
+        );
+        println!("token0 liquidity = {}", position.token0_real_liquidity);
+        println!("token1 liquidity = {}", position.token1_real_liquidity);
+        println!("liquidity = {}", position.liquidity);
+        println!("lower = {}", position.sqrt_lower_bound_price);
+        println!("upper = {}", position.sqrt_upper_bound_price);
+    }
+
+    #[test]
+    fn open_position3() {
+        let position = Position::new(
+            0,
+            String::new(),
+            Some(U128(1000000000000000000000000)),
+            None,
+            1000.0,
+            1100.0,
+            1000.0_f64.sqrt(),
+        );
+        println!("token0 liquidity = {}", position.token0_real_liquidity);
+        println!("token1 liquidity = {}", position.token1_real_liquidity);
+        println!("liquidity = {}", position.liquidity);
+        println!("lower = {}", position.sqrt_lower_bound_price);
+        println!("upper = {}", position.sqrt_upper_bound_price);
     }
 }

@@ -102,6 +102,12 @@ impl Contract {
         self.pools.len() - 1
     }
 
+    #[private]
+    pub fn remove_pool(&mut self, pool_id: usize) {
+        self.assert_pool_exists(pool_id);
+        self.pools.remove(pool_id);
+    }
+
     pub fn get_pools(&self) -> Vec<Pool> {
         self.pools.clone()
     }
@@ -212,7 +218,7 @@ impl Contract {
         let amount_in: u128 = amount_in.into();
         self.accounts
             .decrease_balance(&account_id, &token_in, amount_in);
-        let swap_result = pool.get_swap_result(&token_out, amount_in, pool::SwapDirection::Return);
+        let swap_result = pool.get_swap_result(&token_in, amount_in, pool::SwapDirection::Return);
         self.accounts
             .apply_collected_fees(&swap_result.collected_fees, &token_out);
         self.accounts
