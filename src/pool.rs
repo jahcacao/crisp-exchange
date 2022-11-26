@@ -9,11 +9,18 @@ use near_sdk::{
 use crate::position::{sqrt_price_to_tick, tick_to_sqrt_price, Position};
 
 #[derive(Clone)]
+pub struct CollectedFee {
+    pub account_id: AccountId,
+    pub amount: f64,
+    pub token: AccountId,
+}
+
+#[derive(Clone)]
 pub struct SwapResult {
     pub amount: f64,
     pub new_liquidity: f64,
     pub new_sqrt_price: f64,
-    pub collected_fees: HashMap<AccountId, f64>,
+    pub collected_fees: HashMap<u128, CollectedFee>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -66,7 +73,7 @@ impl Pool {
         let mut tick = self.tick;
         let mut price = self.sqrt_price;
         let mut remaining = amount as f64;
-        let mut collected_fees: HashMap<AccountId, f64> = HashMap::new();
+        let mut collected_fees: HashMap<u128, CollectedFee> = HashMap::new();
         while remaining > 0.0 {
             let liquidity = self.calculate_liquidity_within_tick(price);
             if liquidity == 0.0 && !self.check_available_liquidity(price, token, direction) {
@@ -88,7 +95,7 @@ impl Pool {
                     liquidity,
                 ),
             };
-            self.collect_fees(liquidity, price, temp, &mut collected_fees);
+            self.collect_fees(liquidity, price, temp, token, &mut collected_fees);
             collected += temp;
         }
         let liquidity = self.calculate_liquidity_within_tick(price);
@@ -105,15 +112,33 @@ impl Pool {
         liquidity: f64,
         sqrt_price: f64,
         amount: f64,
-        map: &mut HashMap<AccountId, f64>,
+        token: &AccountId,
+        collected_fees: &mut HashMap<u128, CollectedFee>,
     ) {
         for position in &self.positions {
             if position.is_active(sqrt_price) {
                 let share =
                     (position.liquidity / liquidity) * amount * (self.rewards as f64 / 10000.0);
-                let old_share = map.get(&position.owner_id).unwrap_or(&0.0);
-                map.insert(position.owner_id.to_string(), share + old_share);
+                let old_collected_fee_option = collected_fees.get(&position.id);
+                let mut old_share = 0.0;
+                if let Some(old_collected_fee) = old_collected_fee_option {
+                    old_share = old_collected_fee.amount;
+                }
+                let collected_fee = CollectedFee {
+                    account_id: position.owner_id.clone(),
+                    amount: share + old_share,
+                    token: self.toggle_token(token),
+                };
+                collected_fees.insert(position.id, collected_fee);
             }
+        }
+    }
+
+    fn toggle_token(&self, token: &AccountId) -> AccountId {
+        if token == &self.token0 {
+            self.token1.to_string()
+        } else {
+            self.token0.to_string()
         }
     }
 
@@ -269,6 +294,17 @@ impl Pool {
     pub fn apply_swap_result(&mut self, swap_result: &SwapResult) {
         self.liquidity = swap_result.new_liquidity;
         self.sqrt_price = swap_result.new_sqrt_price;
+        for (id, collected_fee) in &swap_result.collected_fees {
+            for position in &mut self.positions {
+                if &position.id == id {
+                    if collected_fee.token == self.token0 {
+                        position.fees_earned_token0 += collected_fee.amount as u128;
+                    } else {
+                        position.fees_earned_token1 += collected_fee.amount as u128;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -495,7 +531,10 @@ mod test {
         pool.open_position(position);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
     }
 
@@ -516,7 +555,10 @@ mod test {
         pool.open_position(position);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Return);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
     }
 
@@ -539,7 +581,10 @@ mod test {
         }
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
     }
 }

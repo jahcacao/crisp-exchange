@@ -1,4 +1,4 @@
-pub const NOT_ENOUGH_TOKENS: &str = "Not enough tokens";
+pub const _NOT_ENOUGH_TOKENS: &str = "Not enough tokens";
 pub const TOKEN_HAS_NOT_BEEN_DEPOSITED: &str = "Token has not been deposited";
 pub const BAD_POOL_ID: &str = "Bad pool_id";
 pub const YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL: &str =

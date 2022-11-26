@@ -22,6 +22,8 @@ pub struct Position {
     pub is_active: bool,
     pub last_update: u64,
     pub rewards_for_time: u64,
+    pub fees_earned_token0: u128,
+    pub fees_earned_token1: u128,
 }
 
 impl Default for Position {
@@ -39,6 +41,8 @@ impl Default for Position {
             is_active: false,
             last_update: 0,
             rewards_for_time: 0,
+            fees_earned_token0: 0,
+            fees_earned_token1: 0,
         }
     }
 }
@@ -120,6 +124,8 @@ impl Position {
             is_active: true,
             last_update: 0,
             rewards_for_time: 0,
+            fees_earned_token0: 0,
+            fees_earned_token1: 0,
         }
     }
 
@@ -490,25 +496,25 @@ mod test {
     #[should_panic(expected = "token0 liqudity cannot be 0")]
     #[test]
     fn open_position_wrong_order_x_zero() {
-        let position = Position::new(0, String::new(), Some(U128(0)), None, 121.0, 144.0, 11.5);
+        let _position = Position::new(0, String::new(), Some(U128(0)), None, 121.0, 144.0, 11.5);
     }
 
     #[should_panic(expected = "send token1 liquidity instead of token0")]
     #[test]
     fn open_position_wrong_order_x_not_zero_higher_than_upper_bound() {
-        let position = Position::new(0, String::new(), Some(U128(1)), None, 121.0, 144.0, 13.0);
+        let _position = Position::new(0, String::new(), Some(U128(1)), None, 121.0, 144.0, 13.0);
     }
 
     #[should_panic(expected = "token1 liqudity cannot be 0")]
     #[test]
     fn open_position_wrong_order_y_zero() {
-        let position = Position::new(0, String::new(), None, Some(U128(0)), 121.0, 144.0, 11.5);
+        let _position = Position::new(0, String::new(), None, Some(U128(0)), 121.0, 144.0, 11.5);
     }
 
     #[should_panic(expected = "send token0 liquidity instead of token1")]
     #[test]
     fn open_position_wrong_order_y_not_zero_higher_than_upper_bound() {
-        let position = Position::new(0, String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
+        let _position = Position::new(0, String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
     }
 
     #[test]

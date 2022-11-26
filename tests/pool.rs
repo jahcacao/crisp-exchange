@@ -744,3 +744,96 @@ fn fee_test_in() {
     assert!((balance1_lp_after as f64 - amount3).abs() < 10.0);
     assert!(balance2_lp_after == 0);
 }
+
+#[test]
+fn collected_fee() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        100,
+        100,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(11000000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(U128(50000)), None, 81.0, 121.0);
+    contract.open_position(0, Some(U128(50000)), None, 91.0, 111.0);
+    // let _pool = &contract.pools[0];
+    // println!("pool.liquidity = {}", pool.liquidity);
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(1),
+        U128(100000),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(3),
+        accounts(2),
+        U128(100000),
+    );
+    let balance1_before = contract.get_balance(&accounts(3).to_string(), &accounts(1).to_string());
+    let balance2_before = contract.get_balance(&accounts(3).to_string(), &accounts(2).to_string());
+    assert!(balance1_before == U128(100000));
+    assert!(balance2_before == U128(100000));
+    let amount1 = 100000;
+    testing_env!(context.predecessor_account_id(accounts(3)).build());
+    let _pool = &contract.pools[0];
+    // println!("pool.positions[0].liquidity = {}", pool.positions[0].liquidity);
+    // println!("pool.positions[1].liquidity = {}", pool.positions[1].liquidity);
+    // println!("pool.liquidity = {}", pool.liquidity);
+    let _result: u128 = contract
+        .swap_in(
+            0,
+            accounts(2).to_string(),
+            U128(amount1),
+            accounts(1).to_string(),
+        )
+        .into();
+    let _pool = &contract.pools[0];
+    // println!("pool.positions[0].liquidity = {}", pool.positions[0].liquidity);
+    // println!("pool.positions[1].liquidity = {}", pool.positions[1].liquidity);
+    // println!("pool.liquidity = {}", pool.liquidity);
+    // println!("pool.sqrt_price = {}", pool.sqrt_price);
+    let _result: u128 = contract
+        .swap_in(
+            0,
+            accounts(1).to_string(),
+            U128(100000),
+            accounts(2).to_string(),
+        )
+        .into();
+    let pool = &contract.pools[0];
+    // println!("pool.positions[0].liquidity = {} is_active = {}", pool.positions[0].liquidity, pool.positions[0].is_active);
+    // println!("pool.positions[1].liquidity = {} is_active = {}", pool.positions[1].liquidity, pool.positions[1].is_active);
+    // println!("pool.liquidity = {}", pool.liquidity);
+    // println!("pool.sqrt_price = {}", pool.sqrt_price);
+    // println!("pool.positions[0].fees_earned_token0 = {}", pool.positions[0].fees_earned_token0);
+    // println!("pool.positions[0].fees_earned_token1 = {}", pool.positions[0].fees_earned_token1);
+    // println!("pool.positions[1].fees_earned_token0 = {}", pool.positions[1].fees_earned_token0);
+    // println!("pool.positions[1].fees_earned_token1 = {}", pool.positions[1].fees_earned_token1);
+    assert!(pool.positions[0].fees_earned_token0 == 3);
+    assert!(pool.positions[0].fees_earned_token1 == 47382);
+    assert!(pool.positions[1].fees_earned_token0 == 6);
+    assert!(pool.positions[1].fees_earned_token1 == 45979);
+}

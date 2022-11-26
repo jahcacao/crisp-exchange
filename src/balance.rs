@@ -5,9 +5,8 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::{collections::UnorderedMap, AccountId};
 
-use crate::errors::{
-    NOT_ENOUGH_TOKENS, TOKEN_HAS_NOT_BEEN_DEPOSITED, YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL,
-};
+use crate::errors::{TOKEN_HAS_NOT_BEEN_DEPOSITED, YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL};
+use crate::pool::CollectedFee;
 
 pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 
@@ -93,11 +92,15 @@ impl AccountsInfo {
 
     pub fn apply_collected_fees(
         &mut self,
-        collected_fees: &HashMap<AccountId, f64>,
+        collected_fees: &HashMap<u128, CollectedFee>,
         token: &AccountId,
     ) {
-        for (account_id, amount) in collected_fees.iter() {
-            self.increase_balance(account_id, token, *amount as u128);
+        for (_, collected_fee) in collected_fees {
+            self.increase_balance(
+                &collected_fee.account_id,
+                token,
+                collected_fee.amount as u128,
+            );
         }
     }
 }
