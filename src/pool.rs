@@ -303,8 +303,8 @@ impl Pool {
             if position.is_active(self.sqrt_price) {
                 liquidity += position.liquidity;
             }
-            token0_locked += position.token0_real_liquidity;
-            token1_locked += position.token1_real_liquidity;
+            token0_locked += position.token0_locked;
+            token1_locked += position.token1_locked;
         }
         self.liquidity = liquidity;
         self.token0_locked = token0_locked.round() as u128;

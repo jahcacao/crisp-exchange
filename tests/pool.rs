@@ -1027,8 +1027,8 @@ fn value_locked_more_swaps() {
         );
         let pool = &contract.pools[0];
         let position = &pool.positions[0];
-        assert!(pool.token0_locked == (position.token0_real_liquidity.round() as u128));
-        assert!(pool.token1_locked == (position.token1_real_liquidity.round() as u128));
+        assert!(pool.token0_locked == (position.token0_locked.round() as u128));
+        assert!(pool.token1_locked == (position.token1_locked.round() as u128));
         assert!(pool.token0_locked <= initial_balance1);
         assert!(pool.token1_locked <= initial_balance2);
         let balance1 = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());

@@ -228,12 +228,12 @@ impl Contract {
         self.accounts.decrease_balance(
             &account_id,
             &pool.token0,
-            position.token0_real_liquidity.round() as u128,
+            position.token0_locked.round() as u128,
         );
         self.accounts.decrease_balance(
             &account_id,
             &pool.token1,
-            position.token1_real_liquidity.round() as u128,
+            position.token1_locked.round() as u128,
         );
         pool.open_position(position.clone());
         let current_timestamp = env::block_timestamp();
@@ -255,8 +255,8 @@ impl Contract {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
                 let position = position.clone();
-                let amount0 = position.token0_real_liquidity.round() as u128;
-                let amount1 = position.token1_real_liquidity.round() as u128;
+                let amount0 = position.token0_locked.round() as u128;
+                let amount1 = position.token1_locked.round() as u128;
                 self.accounts.increase_balance(&account_id, token0, amount0);
                 self.accounts.increase_balance(&account_id, token1, amount1);
                 pool.close_position(i);

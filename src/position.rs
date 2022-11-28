@@ -12,9 +12,9 @@ use crate::{errors::*, BASIS_POINT};
 pub struct Position {
     pub id: u128,
     pub owner_id: AccountId,
-    pub liquidity: f64,             // L
-    pub token0_real_liquidity: f64, // x
-    pub token1_real_liquidity: f64, // y
+    pub liquidity: f64,     // L
+    pub token0_locked: f64, // x
+    pub token1_locked: f64, // y
     pub tick_lower_bound_price: i32,
     pub tick_upper_bound_price: i32,
     pub sqrt_lower_bound_price: f64, // p_a
@@ -32,8 +32,8 @@ impl Default for Position {
             id: 0,
             owner_id: String::new(),
             liquidity: 0.0,
-            token0_real_liquidity: 0.0,
-            token1_real_liquidity: 0.0,
+            token0_locked: 0.0,
+            token1_locked: 0.0,
             tick_lower_bound_price: 0,
             tick_upper_bound_price: 0,
             sqrt_lower_bound_price: 0.0,
@@ -113,8 +113,8 @@ impl Position {
             id,
             owner_id,
             liquidity,
-            token0_real_liquidity: x,
-            token1_real_liquidity: y,
+            token0_locked: x,
+            token1_locked: y,
             tick_lower_bound_price,
             tick_upper_bound_price,
             sqrt_lower_bound_price,
@@ -128,13 +128,13 @@ impl Position {
     }
 
     pub fn refresh(&mut self, sqrt_price: f64, current_timestamp: u64) {
-        self.token0_real_liquidity = calculate_x(
+        self.token0_locked = calculate_x(
             self.liquidity,
             sqrt_price,
             self.sqrt_lower_bound_price,
             self.sqrt_upper_bound_price,
         );
-        self.token1_real_liquidity = calculate_y(
+        self.token1_locked = calculate_y(
             self.liquidity,
             sqrt_price,
             self.sqrt_lower_bound_price,
@@ -400,12 +400,12 @@ mod test {
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
-            position.token0_real_liquidity.floor() == 50.0,
+            position.token0_locked.floor() == 50.0,
             "{}",
             _TOKEN0_LIQUIDITY_DOESNT_MATCH
         );
         assert!(
-            position.token1_real_liquidity == 27504.676564711368,
+            position.token1_locked == 27504.676564711368,
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
@@ -442,12 +442,12 @@ mod test {
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
-            position.token0_real_liquidity == 50.0,
+            position.token0_locked == 50.0,
             "{}",
             _TOKEN0_LIQUIDITY_DOESNT_MATCH
         );
         assert!(
-            position.token1_real_liquidity == 0.0,
+            position.token1_locked == 0.0,
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
@@ -484,12 +484,12 @@ mod test {
         assert!(position.id == 0, "{}", _BAD_POSITION_ID);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
-            position.token0_real_liquidity == 0.0,
+            position.token0_locked == 0.0,
             "{}",
             _TOKEN0_LIQUIDITY_DOESNT_MATCH
         );
         assert!(
-            position.token1_real_liquidity == 50.0,
+            position.token1_locked == 50.0,
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
@@ -555,12 +555,12 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        assert!(position.token0_real_liquidity == 1000000000000000000.0);
+        assert!(position.token0_locked == 1000000000000000000.0);
         println!(
             "position.token1_real_liquidity = {}",
-            position.token1_real_liquidity
+            position.token1_locked
         );
-        assert!(position.token1_real_liquidity == 1103229672007021900000.0);
+        assert!(position.token1_locked == 1103229672007021900000.0);
         assert!(position.liquidity == 679621668342898400000.0);
         println!(
             "position.sqrt_lower_bound_price = {}",
@@ -585,8 +585,8 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        assert!(position.token0_real_liquidity == 1000000000000000000000000.0);
-        assert!(position.token1_real_liquidity == 1103229672007021800000000000.0);
+        assert!(position.token0_locked == 1000000000000000000000000.0);
+        assert!(position.token1_locked == 1103229672007021800000000000.0);
         assert!(position.liquidity == 679621668342898300000000000.0);
         println!(
             "position.sqrt_lower_bound_price = {}",
@@ -611,12 +611,12 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        assert!(position.token0_real_liquidity == 1000000000000000000000000.0);
+        assert!(position.token0_locked == 1000000000000000000000000.0);
         println!(
             "position.token1_real_liquidity = {}",
-            position.token1_real_liquidity
+            position.token1_locked
         );
-        assert!(position.token1_real_liquidity == 7102492217198050000000.0);
+        assert!(position.token1_locked == 7102492217198050000000.0);
         assert!(position.liquidity == 679621668342898300000000000.0);
         println!(
             "position.sqrt_lower_bound_price = {}",
