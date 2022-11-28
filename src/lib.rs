@@ -11,7 +11,7 @@ use crate::position::Position;
 
 mod balance;
 mod errors;
-mod pool;
+pub mod pool;
 mod position;
 mod token_receiver;
 
@@ -159,14 +159,14 @@ impl Contract {
         let pool = self.get_pool(pool_id);
         let amount_in: u128 = amount_in.into();
         let swap_result = pool.get_swap_result(token_in, amount_in, pool::SwapDirection::Return);
-        (swap_result.amount as u128).into()
+        (swap_result.amount.round() as u128).into()
     }
 
     pub fn get_expense(&self, pool_id: usize, token_out: &AccountId, amount_out: U128) -> U128 {
         let pool = self.get_pool(pool_id);
         let amount_out: u128 = amount_out.into();
         let swap_result = pool.get_swap_result(token_out, amount_out, pool::SwapDirection::Expense);
-        (swap_result.amount as u128).into()
+        (swap_result.amount.round() as u128).into()
     }
 
     pub fn get_price(&self, pool_id: usize) -> f64 {
@@ -175,37 +175,7 @@ impl Contract {
         sqrt_price * sqrt_price
     }
 
-    pub fn swap_out(
-        &mut self,
-        pool_id: usize,
-        token_in: AccountId,
-        amount_out: U128,
-        token_out: AccountId,
-    ) -> U128 {
-        self.assert_pool_exists(pool_id);
-        let pool = &mut self.pools[pool_id];
-        let account_id = env::predecessor_account_id();
-        let amount_out: u128 = amount_out.into();
-        self.accounts
-            .increase_balance(&account_id, &token_out, amount_out);
-        let swap_result =
-            pool.get_swap_result(&token_out, amount_out, pool::SwapDirection::Expense);
-        self.accounts
-            .apply_collected_fees(&swap_result.collected_fees, &token_in);
-        self.accounts
-            .decrease_balance(&account_id, &token_in, swap_result.amount as u128);
-        let fees_amount = (swap_result.amount as f64)
-            * (pool.protocol_fee as f64 + pool.rewards as f64)
-            / BASIS_POINT_TO_PERCENT;
-        self.accounts
-            .decrease_balance(&account_id, &token_in, fees_amount as u128);
-        pool.apply_swap_result(&swap_result);
-        let current_timestamp = env::block_timestamp();
-        pool.refresh_positions(current_timestamp);
-        (swap_result.amount as u128).into()
-    }
-
-    pub fn swap_in(
+    pub fn swap(
         &mut self,
         pool_id: usize,
         token_in: AccountId,
@@ -222,15 +192,15 @@ impl Contract {
         self.accounts
             .apply_collected_fees(&swap_result.collected_fees, &token_out);
         self.accounts
-            .increase_balance(&account_id, &token_out, swap_result.amount as u128);
+            .increase_balance(&account_id, &token_out, swap_result.amount.round() as u128);
         let fees_amount = swap_result.amount * (pool.protocol_fee as f64 + pool.rewards as f64)
             / BASIS_POINT_TO_PERCENT;
         self.accounts
-            .decrease_balance(&account_id, &token_out, fees_amount as u128);
+            .decrease_balance(&account_id, &token_out, fees_amount.round() as u128);
         pool.apply_swap_result(&swap_result);
         let current_timestamp = env::block_timestamp();
-        pool.refresh_positions(current_timestamp);
-        (swap_result.amount as u128).into()
+        pool.refresh(current_timestamp);
+        (swap_result.amount.round() as u128).into()
     }
 
     pub fn open_position(
@@ -258,16 +228,16 @@ impl Contract {
         self.accounts.decrease_balance(
             &account_id,
             &pool.token0,
-            position.token0_real_liquidity as u128,
+            position.token0_real_liquidity.round() as u128,
         );
         self.accounts.decrease_balance(
             &account_id,
             &pool.token1,
-            position.token1_real_liquidity as u128,
+            position.token1_real_liquidity.round() as u128,
         );
         pool.open_position(position.clone());
         let current_timestamp = env::block_timestamp();
-        pool.refresh_positions(current_timestamp);
+        pool.refresh(current_timestamp);
         let metadata = TokenMetadata::new(pool_id, &position);
         self.nft_mint(id.to_string(), account_id.clone(), metadata);
         id
@@ -278,7 +248,6 @@ impl Contract {
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         let current_timestamp = env::block_timestamp();
-        pool.refresh_positions(current_timestamp);
         let token = self.tokens_by_id.get(&id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
         for (i, position) in &mut pool.positions.iter().enumerate() {
@@ -286,12 +255,12 @@ impl Contract {
                 let token0 = &pool.token0;
                 let token1 = &pool.token1;
                 let position = position.clone();
-                let amount0 = position.token0_real_liquidity as u128;
-                let amount1 = position.token1_real_liquidity as u128;
+                let amount0 = position.token0_real_liquidity.round() as u128;
+                let amount1 = position.token1_real_liquidity.round() as u128;
                 self.accounts.increase_balance(&account_id, token0, amount0);
                 self.accounts.increase_balance(&account_id, token1, amount1);
                 pool.close_position(i);
-                self.nft_burn(id.to_string());
+                pool.refresh(current_timestamp);
                 return true;
             }
         }

@@ -19,3 +19,4 @@ pub const _TOKEN1_LIQUIDITY_DOESNT_MATCH: &str = "Token 1 liquidity doesn't matc
 pub const _NO_VALID_OWNER_ID: &str = "No valid owner id";
 pub const _WRONG_TOKEN_AMOUNT: &str = "Wrong token amount chosen";
 pub const INCORRECT_TOKEN: &str = "Incorrect token";
+pub const NOT_ENOUGH_LIQUIDITY_IN_POOL: &str = "Not enough liquidity in pool to cover this swap";

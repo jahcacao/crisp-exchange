@@ -7,6 +7,7 @@ use crate::*;
 #[near_bindgen]
 impl FungibleTokenReceiver for Contract {
     #[allow(unreachable_code)]
+    #[allow(unused_variables)]
     fn ft_on_transfer(
         &mut self,
         sender_id: ValidAccountId,

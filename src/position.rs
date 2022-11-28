@@ -66,8 +66,10 @@ impl Position {
         let liquidity;
         let x;
         let y;
-        let sqrt_lower_bound_price = (lower_bound_price as f64).sqrt();
-        let sqrt_upper_bound_price = (upper_bound_price as f64).sqrt();
+        let tick_lower_bound_price = sqrt_price_to_tick(lower_bound_price.sqrt());
+        let tick_upper_bound_price = sqrt_price_to_tick(upper_bound_price.sqrt());
+        let sqrt_lower_bound_price = tick_to_sqrt_price(tick_lower_bound_price);
+        let sqrt_upper_bound_price = tick_to_sqrt_price(tick_upper_bound_price);
         if token0_liquidity.is_some() {
             let token0_liquidity: u128 = token0_liquidity.unwrap().into();
             x = token0_liquidity as f64;
@@ -107,10 +109,6 @@ impl Position {
                 sqrt_upper_bound_price,
             );
         }
-        let tick_lower_bound_price = sqrt_price_to_tick(sqrt_lower_bound_price);
-        let tick_upper_bound_price = sqrt_price_to_tick(sqrt_upper_bound_price);
-        let sqrt_lower_bound_price = BASIS_POINT.powf((tick_lower_bound_price / 2) as f64);
-        let sqrt_upper_bound_price = BASIS_POINT.powf((tick_upper_bound_price / 2) as f64);
         Position {
             id,
             owner_id,
@@ -221,11 +219,15 @@ pub fn _calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
 }
 
 pub fn tick_to_sqrt_price(tick: i32) -> f64 {
-    (1.0001_f64).powf(tick as f64 / 2.0)
+    BASIS_POINT.powf(tick as f64 / 2.0)
 }
 
 pub fn sqrt_price_to_tick(sqrt_price: f64) -> i32 {
-    sqrt_price.log(1.0001_f64.sqrt()).floor() as i32
+    (2.0 * sqrt_price.log(BASIS_POINT)).floor() as i32
+}
+
+pub fn _calculate_sp(l: f64, x: f64, sb: f64) -> f64 {
+    (l * sb) / (x * sb + l)
 }
 
 #[cfg(test)]
@@ -234,6 +236,7 @@ mod test {
     use super::min;
     use crate::position::max;
     use crate::position::*;
+
     #[test]
     fn debug_info() {
         let p = 3227.02_f64;
@@ -243,18 +246,21 @@ mod test {
         let y = 5096.06_f64;
         println!("p = {}, a = {}, b = {}, x = {}, y = {}", p, a, b, x, y);
     }
+
     #[test]
     fn min_vault() {
         let first = 50_f64;
         let second = 100_f64;
         assert_eq!(min(first, second), 50_f64);
     }
+
     #[test]
     fn max_vault() {
         let first = 50_f64;
         let second = 100_f64;
         assert_eq!(max(first, second), 100_f64);
     }
+
     #[test]
     fn get_liquidity_0_test() {
         let sa = 1626.3_f64.powf(0.5);
@@ -264,6 +270,7 @@ mod test {
         assert_eq!(l_0, 26.0);
         println!("sa = {}, sb = {}, x = {}, l_0 = {}", sa, sb, x, l_0);
     }
+
     #[test]
     fn get_liquidity_1_test() {
         let sa = 1626.3_f64.powf(0.5);
@@ -273,6 +280,7 @@ mod test {
         assert_eq!(l_1, 2556.0);
         println!("sa = {}, sb = {}, y = {}, l_1 = {}", sa, sb, y, l_1);
     }
+
     #[test]
     fn get_liquidity_test() {
         // At sp <= sa ((x * sa * sb)/(sb - sa))
@@ -306,6 +314,7 @@ mod test {
         assert_eq!(l, -1162.0);
         println!(" sa < sp > sb, l = {}", l);
     }
+
     #[test]
     fn calculate_x_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -319,6 +328,7 @@ mod test {
         assert!(x == 1.0);
         println!("old x = {}, new x = {}", x, x1);
     }
+
     #[test]
     fn calculate_y_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -331,6 +341,7 @@ mod test {
         assert_eq!(y1.floor(), 5088.0);
         println!("old y = {}, new y = {}", y, y1);
     }
+
     #[test]
     fn calculate_a1_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -344,6 +355,7 @@ mod test {
         assert_eq!(a1.floor(), 1624.0);
         println!("old a = {}, new a = {}", a, a1);
     }
+
     #[test]
     fn calculate_a2_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -355,6 +367,7 @@ mod test {
         assert_eq!(a2.floor(), 1624.0);
         println!("old a = {}, new a delta = {}", a, a2);
     }
+
     #[test]
     fn calculate_b1_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -368,6 +381,7 @@ mod test {
         assert_eq!(b1.floor(), 4846.0);
         println!("old b = {}, new b = {}", b, b1);
     }
+
     #[test]
     fn calculate_b2_test() {
         let sp = 3227.02_f64.powf(0.5);
@@ -379,6 +393,7 @@ mod test {
         assert_eq!(b2.floor(), 4842.0);
         println!("old b = {}, new b delta = {}", b, b2);
     }
+
     #[test]
     fn open_position() {
         let position = Position::new(0, String::new(), Some(U128(50)), None, 25.0, 121.0, 10.0);
@@ -390,11 +405,15 @@ mod test {
             _TOKEN0_LIQUIDITY_DOESNT_MATCH
         );
         assert!(
-            position.token1_real_liquidity == 27500.0,
+            position.token1_real_liquidity == 27504.676564711368,
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
-        assert!(position.liquidity == 5500.0, "{}", _LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.liquidity == 5500.834197154125,
+            "{}",
+            _LIQUIDITY_DOESNT_MATCH
+        );
         assert!(
             position.tick_lower_bound_price == 32190,
             "{}",
@@ -432,7 +451,11 @@ mod test {
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
-        assert!(position.liquidity == 6600.0, "{}", _LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.liquidity == 6601.04186065018,
+            "{}",
+            _LIQUIDITY_DOESNT_MATCH
+        );
         assert!(
             position.tick_lower_bound_price == 47960,
             "{}",
@@ -470,7 +493,11 @@ mod test {
             "{}",
             _TOKEN1_LIQUIDITY_DOESNT_MATCH
         );
-        assert!(position.liquidity == 50.0, "{}", _LIQUIDITY_DOESNT_MATCH);
+        assert!(
+            position.liquidity == 50.010196115842504,
+            "{}",
+            _LIQUIDITY_DOESNT_MATCH
+        );
         assert!(
             position.tick_lower_bound_price == 47960,
             "{}",
@@ -528,11 +555,23 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        println!("token0 liquidity = {}", position.token0_real_liquidity);
-        println!("token1 liquidity = {}", position.token1_real_liquidity);
-        println!("liquidity = {}", position.liquidity);
-        println!("lower = {}", position.sqrt_lower_bound_price);
-        println!("upper = {}", position.sqrt_upper_bound_price);
+        assert!(position.token0_real_liquidity == 1000000000000000000.0);
+        println!(
+            "position.token1_real_liquidity = {}",
+            position.token1_real_liquidity
+        );
+        assert!(position.token1_real_liquidity == 1103229672007021900000.0);
+        assert!(position.liquidity == 679621668342898400000.0);
+        println!(
+            "position.sqrt_lower_bound_price = {}",
+            position.sqrt_lower_bound_price
+        );
+        assert!(position.sqrt_lower_bound_price == 29.999476869794734);
+        println!(
+            "position.sqrt_upper_bound_price = {}",
+            position.sqrt_upper_bound_price
+        );
+        assert!(position.sqrt_upper_bound_price == 33.16598911754618);
     }
 
     #[test]
@@ -546,11 +585,19 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        println!("token0 liquidity = {}", position.token0_real_liquidity);
-        println!("token1 liquidity = {}", position.token1_real_liquidity);
-        println!("liquidity = {}", position.liquidity);
-        println!("lower = {}", position.sqrt_lower_bound_price);
-        println!("upper = {}", position.sqrt_upper_bound_price);
+        assert!(position.token0_real_liquidity == 1000000000000000000000000.0);
+        assert!(position.token1_real_liquidity == 1103229672007021800000000000.0);
+        assert!(position.liquidity == 679621668342898300000000000.0);
+        println!(
+            "position.sqrt_lower_bound_price = {}",
+            position.sqrt_lower_bound_price
+        );
+        assert!(position.sqrt_lower_bound_price == 29.999476869794734);
+        println!(
+            "position.sqrt_upper_bound_price = {}",
+            position.sqrt_upper_bound_price
+        );
+        assert!(position.sqrt_upper_bound_price == 33.16598911754618);
     }
 
     #[test]
@@ -564,10 +611,42 @@ mod test {
             1100.0,
             1000.0_f64.sqrt(),
         );
-        println!("token0 liquidity = {}", position.token0_real_liquidity);
-        println!("token1 liquidity = {}", position.token1_real_liquidity);
-        println!("liquidity = {}", position.liquidity);
-        println!("lower = {}", position.sqrt_lower_bound_price);
-        println!("upper = {}", position.sqrt_upper_bound_price);
+        assert!(position.token0_real_liquidity == 1000000000000000000000000.0);
+        println!(
+            "position.token1_real_liquidity = {}",
+            position.token1_real_liquidity
+        );
+        assert!(position.token1_real_liquidity == 7102492217198050000000.0);
+        assert!(position.liquidity == 679621668342898300000000000.0);
+        println!(
+            "position.sqrt_lower_bound_price = {}",
+            position.sqrt_lower_bound_price
+        );
+        assert!(position.sqrt_lower_bound_price == 31.622766151027864);
+        println!(
+            "position.sqrt_upper_bound_price = {}",
+            position.sqrt_upper_bound_price
+        );
+        assert!(position.sqrt_upper_bound_price == 33.16598911754618);
+    }
+
+    #[test]
+    fn ticks1() {
+        let tick = 500;
+        let sqrt_price = tick_to_sqrt_price(tick);
+        let new_tick = sqrt_price_to_tick(sqrt_price);
+        assert!(tick == new_tick);
+    }
+
+    #[test]
+    fn ticks2() {
+        let sqrt_price = 10.0;
+        let tick = sqrt_price_to_tick(sqrt_price);
+        assert!(tick == 46054);
+        let new_sqrt_price = tick_to_sqrt_price(tick + 1);
+        println!("new_sqrt_price = {new_sqrt_price}");
+        assert!(new_sqrt_price > sqrt_price);
+        let new_tick = sqrt_price_to_tick(new_sqrt_price);
+        assert!(new_tick > tick)
     }
 }

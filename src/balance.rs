@@ -99,7 +99,7 @@ impl AccountsInfo {
             self.increase_balance(
                 &collected_fee.account_id,
                 token,
-                collected_fee.amount as u128,
+                collected_fee.amount.round() as u128,
             );
         }
     }
