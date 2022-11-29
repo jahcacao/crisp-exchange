@@ -150,6 +150,134 @@ impl Position {
     pub fn is_active(&self, sqrt_price: f64) -> bool {
         self.sqrt_lower_bound_price <= sqrt_price && self.sqrt_upper_bound_price >= sqrt_price
     }
+
+    pub fn add_liquidity(
+        &mut self,
+        token0_liquidity: Option<U128>,
+        token1_liquidity: Option<U128>,
+        sqrt_price: f64,
+    ) {
+        assert!(
+            token0_liquidity.is_some() ^ token1_liquidity.is_some(),
+            "{}",
+            INCORRECT_TOKEN
+        );
+        if token0_liquidity.is_some() {
+            let token0_liquidity: u128 = token0_liquidity.unwrap().into();
+            self.token0_locked += token0_liquidity as f64;
+            assert!(
+                sqrt_price <= self.sqrt_upper_bound_price,
+                "send token1 liquidity instead of token0"
+            );
+            if self.sqrt_lower_bound_price < sqrt_price && sqrt_price < self.sqrt_upper_bound_price
+            {
+                self.liquidity =
+                    get_liquidity_0(self.token0_locked, sqrt_price, self.sqrt_upper_bound_price);
+            } else {
+                self.liquidity = get_liquidity_0(
+                    self.token0_locked,
+                    self.sqrt_lower_bound_price,
+                    self.sqrt_upper_bound_price,
+                );
+            }
+            self.token1_locked = calculate_y(
+                self.liquidity,
+                sqrt_price,
+                self.sqrt_lower_bound_price,
+                self.sqrt_upper_bound_price,
+            );
+        } else {
+            let token1_liquidity: u128 = token1_liquidity.unwrap().into();
+            self.token1_locked += token1_liquidity as f64;
+            assert!(
+                sqrt_price >= self.sqrt_lower_bound_price,
+                "send token0 liquidity instead of token0"
+            );
+            if self.sqrt_lower_bound_price <= sqrt_price
+                && sqrt_price <= self.sqrt_upper_bound_price
+            {
+                self.liquidity =
+                    get_liquidity_1(self.token1_locked, self.sqrt_lower_bound_price, sqrt_price);
+            } else {
+                self.liquidity = get_liquidity_1(
+                    self.token1_locked,
+                    self.sqrt_lower_bound_price,
+                    self.sqrt_upper_bound_price,
+                );
+            }
+            self.token0_locked = calculate_x(
+                self.liquidity,
+                sqrt_price,
+                self.sqrt_lower_bound_price,
+                self.sqrt_upper_bound_price,
+            );
+        }
+    }
+
+    pub fn remove_liquidity(
+        &mut self,
+        token0_liquidity: Option<U128>,
+        token1_liquidity: Option<U128>,
+        sqrt_price: f64,
+    ) {
+        assert!(
+            token0_liquidity.is_some() ^ token1_liquidity.is_some(),
+            "{}",
+            INCORRECT_TOKEN
+        );
+        if token0_liquidity.is_some() {
+            let token0_liquidity: u128 = token0_liquidity.unwrap().into();
+            self.token0_locked -= token0_liquidity as f64;
+            assert!(self.token0_locked > 0.0);
+            assert!(
+                sqrt_price <= self.sqrt_upper_bound_price,
+                "send token1 liquidity instead of token0"
+            );
+            if self.sqrt_lower_bound_price < sqrt_price && sqrt_price < self.sqrt_upper_bound_price
+            {
+                self.liquidity =
+                    get_liquidity_0(self.token0_locked, sqrt_price, self.sqrt_upper_bound_price);
+            } else {
+                self.liquidity = get_liquidity_0(
+                    self.token0_locked,
+                    self.sqrt_lower_bound_price,
+                    self.sqrt_upper_bound_price,
+                );
+            }
+            self.token1_locked = calculate_y(
+                self.liquidity,
+                sqrt_price,
+                self.sqrt_lower_bound_price,
+                self.sqrt_upper_bound_price,
+            );
+        } else {
+            let token1_liquidity: u128 = token1_liquidity.unwrap().into();
+            self.token1_locked -= token1_liquidity as f64;
+            assert!(self.token1_locked > 0.0);
+            assert!(
+                sqrt_price >= self.sqrt_lower_bound_price,
+                "send token0 liquidity instead of token0"
+            );
+            if self.sqrt_lower_bound_price <= sqrt_price
+                && sqrt_price <= self.sqrt_upper_bound_price
+            {
+                self.liquidity =
+                    get_liquidity_1(self.token1_locked, self.sqrt_lower_bound_price, sqrt_price);
+            } else {
+                self.liquidity = get_liquidity_1(
+                    self.token1_locked,
+                    self.sqrt_lower_bound_price,
+                    self.sqrt_upper_bound_price,
+                );
+            }
+            self.token0_locked = calculate_x(
+                self.liquidity,
+                sqrt_price,
+                self.sqrt_lower_bound_price,
+                self.sqrt_upper_bound_price,
+            );
+        }
+    }
 }
 
 fn min(first: f64, second: f64) -> f64 {

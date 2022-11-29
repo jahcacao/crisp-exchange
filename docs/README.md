@@ -119,19 +119,11 @@ Returns float price:
 ```
 Swap in the pool (If I know how much I want to send):
 ```
-near call $CONTRACT_ID swap_out '{"pool_id": 0, "token_in": "'$TOKEN1'", "amount_in": "1357984", "token_out": "'$TOKEN2'"}' --accountId $USER_ID
+near call $CONTRACT_ID swap '{"pool_id": 0, "token_in": "'$TOKEN1'", "amount_in": "1357984", "token_out": "'$TOKEN2'"}' --accountId $USER_ID
 ```
 Returns given amount I get:
 ```
 "13562"
-```
-Swap in the pool (If I know how much I want to get):
-```
-near call $CONTRACT_ID swap_in '{"pool_id": 0, "token_in": "'$TOKEN1'", "amount_out": "1357984", "token_out": "'$TOKEN2'"}' --accountId $USER_ID
-```
-Returns amount I send:
-```
-"9375"
 ```
 Open position (Choose only one token, amount of another token will be calculated automatically):
 ```
@@ -149,3 +141,14 @@ Returns bool (true if positions was actually closed and false otherwise)
 ```
 true
 ```
+Add tokens to the position:
+```
+near call $CONTRACT_ID add_liquidity '{"pool_id": 0, "id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
+```
+Returns bool (true if liquidity was actually added to the position and false otherwise)
+
+Add tokens to the position:
+```
+near call $CONTRACT_ID remove_liquidity '{"pool_id": 0, "id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
+```
+Returns bool (true if liquidity was actually removed from the position and false otherwise)

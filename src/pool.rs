@@ -663,4 +663,128 @@ mod test {
         }
         assert!((amount - fee).abs() < 0.00001);
     }
+
+    #[test]
+    fn pool_add_liquidity1() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            0,
+            "user.near".to_string(),
+            Some(U128(50)),
+            None,
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        assert!(position.token0_locked.round() == 50.0);
+        let liquidity1 = position.liquidity;
+        let token1_locked1 = position.token1_locked;
+        position.add_liquidity(Some(U128(100)), None, 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        assert!(position.token0_locked.round() == 150.0);
+        let liquidity2 = position.liquidity;
+        let token1_locked2 = position.token1_locked;
+        assert!((liquidity2 / liquidity1) == (token1_locked2 / token1_locked1));
+    }
+
+    #[test]
+    fn pool_add_liquidity2() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            0,
+            "user.near".to_string(),
+            None,
+            Some(U128(50)),
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        assert!(position.token1_locked.round() == 50.0);
+        let liquidity1 = position.liquidity;
+        let token0_locked1 = position.token0_locked;
+        position.add_liquidity(None, Some(U128(100)), 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        assert!(position.token1_locked.round() == 150.0);
+        let liquidity2 = position.liquidity;
+        let token0_locked2 = position.token0_locked;
+        assert!((liquidity2 / liquidity1) == (token0_locked2 / token0_locked1));
+    }
+
+    #[test]
+    fn pool_remove_liquidity1() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            0,
+            "user.near".to_string(),
+            Some(U128(150)),
+            None,
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token0_locked.round() == 150.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity1 = position.liquidity;
+        println!("position.token1_locked = {}", position.token1_locked);
+        let token1_locked1 = position.token1_locked;
+        position.remove_liquidity(Some(U128(100)), None, 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token0_locked.round() == 50.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity2 = position.liquidity;
+        let token1_locked2 = position.token1_locked;
+        println!("position.token1_locked = {}", position.token1_locked);
+        assert!((liquidity1 / liquidity2) == (token1_locked1 / token1_locked2));
+    }
+
+    #[test]
+    fn pool_remove_liquidity2() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            0,
+            "user.near".to_string(),
+            None,
+            Some(U128(150)),
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token1_locked.round() == 150.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity1 = position.liquidity;
+        println!("position.token1_locked = {}", position.token1_locked);
+        let token0_locked1 = position.token0_locked;
+        position.remove_liquidity(None, Some(U128(100)), 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token1_locked.round() == 50.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity2 = position.liquidity;
+        let token0_locked2 = position.token0_locked;
+        println!("position.token1_locked = {}", position.token1_locked);
+        assert!((liquidity1 / liquidity2) == (token0_locked1 / token0_locked2));
+    }
 }
