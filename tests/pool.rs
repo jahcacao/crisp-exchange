@@ -286,7 +286,7 @@ fn open_ten_positions() {
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.open_position(0, Some(U128(500)), None, 120.0, 130.0);
     let pool = contract.get_pool(0);
-    assert!(pool.liquidity == 12201.79823315044);
+    assert!(pool.liquidity.round() == 12202.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
     assert!(pool.positions.len() == 10);
