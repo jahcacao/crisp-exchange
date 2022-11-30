@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use near_sdk::json_types::U128;
+use near_sdk::serde_json;
 use near_sdk::test_utils::accounts;
 use near_sdk::testing_env;
 use near_sdk::MockedBlockchain;
@@ -23,7 +26,7 @@ fn create_pool() {
     assert!(pool.token1 == accounts(1).to_string());
     assert!(pool.liquidity == 0.0);
     assert!(pool.tick == 46054);
-    assert!(pool.positions == vec![]);
+    assert!(pool.positions == HashMap::new());
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.protocol_fee == 0);
     assert!(pool.rewards == 0);
@@ -235,7 +238,7 @@ fn open_three_positions() {
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     contract.open_position(0, None, Some(U128(150)), 81.0, 169.0);
     let pool = contract.get_pool(0);
-    assert!(pool.liquidity == 6175.87588054293);
+    assert!(pool.liquidity.round() == 6176.0);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
     assert!(pool.positions.len() == 3);
@@ -421,7 +424,7 @@ fn get_expense() {
     let result3 = contract.get_expense(0, &accounts(1).to_string(), U128(10005000));
     let result4 = contract.get_expense(0, &accounts(2).to_string(), U128(1101002812));
     let pool = &contract.pools[0];
-    let position = &pool.positions[0];
+    let position = &pool.positions.get(&0).unwrap();
     println!("result1 = {}", result1.0);
     println!("result2 = {}", result2.0);
     println!("result3 = {}", result3.0);
@@ -834,22 +837,24 @@ fn collected_fee() {
         )
         .into();
     let pool = &contract.pools[0];
-    assert!(pool.positions[0].fees_earned_token0 == 4);
+    let position = pool.positions.get(&0).unwrap();
+    assert!(position.fees_earned_token0 == 4);
     println!(
         "pool.positions[0].fees_earned_token1 = {}",
-        pool.positions[0].fees_earned_token1
+        position.fees_earned_token1
     );
-    assert!(pool.positions[0].fees_earned_token1 == 46522);
+    assert!(position.fees_earned_token1 == 46522);
     println!(
         "pool.positions[0].fees_earned_token1 = {}",
-        pool.positions[0].fees_earned_token1
+        position.fees_earned_token1
     );
-    assert!(pool.positions[1].fees_earned_token0 == 6);
+    let position = pool.positions.get(&1).unwrap();
+    assert!(position.fees_earned_token0 == 6);
     println!(
         "pool.positions[1].fees_earned_token1 = {}",
-        pool.positions[1].fees_earned_token1
+        position.fees_earned_token1
     );
-    assert!(pool.positions[1].fees_earned_token1 == 46007);
+    assert!(position.fees_earned_token1 == 46007);
 }
 
 #[test]
@@ -1026,7 +1031,7 @@ fn value_locked_more_swaps() {
             accounts(2).to_string(),
         );
         let pool = &contract.pools[0];
-        let position = &pool.positions[0];
+        let position = &pool.positions.get(&0).unwrap();
         assert!(pool.token0_locked == (position.token0_locked.round() as u128));
         assert!(pool.token1_locked == (position.token1_locked.round() as u128));
         assert!(pool.token0_locked <= initial_balance1);
@@ -1076,7 +1081,7 @@ fn add_and_remove_liquidity1() {
     contract.remove_liquidity(0, 0, Some(U128(10000)), None);
     contract.add_liquidity(0, 0, Some(U128(10000)), None);
     let pool = &contract.pools[0];
-    let position = &pool.positions[0];
+    let position = &pool.positions.get(&0).unwrap();
     assert!(position.token0_locked.round() == 100000.0);
 }
 
@@ -1113,6 +1118,138 @@ fn add_and_remove_liquidity2() {
     contract.remove_liquidity(0, 0, None, Some(U128(10000)));
     contract.add_liquidity(0, 0, None, Some(U128(10000)));
     let pool = &contract.pools[0];
-    let position = &pool.positions[0];
+    let position = &pool.positions.get(&0).unwrap();
     assert!(position.token1_locked.round() == 100000.0);
+}
+
+#[test]
+fn open_many_positions() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    for i in 3..103 {
+        let account = format!("\"{i}.testnet\"");
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(1),
+            U128(2000000),
+        );
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(2),
+            U128(3000000),
+        );
+        testing_env!(context
+            .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        for _ in 0..10 {
+            contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
+        }
+    }
+    let pool = &contract.pools[0];
+    println!("len = {}", pool.positions.len());
+    assert!(pool.positions.len() == 1000);
+}
+
+#[test]
+fn open_many_positions_with_swap1() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    for i in 3..13 {
+        let account = format!("\"{i}.testnet\"");
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(1),
+            U128(2000000),
+        );
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(2),
+            U128(3000000),
+        );
+        testing_env!(context
+            .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        for _ in 0..10 {
+            contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
+        }
+        let amount = contract.swap(
+            0,
+            accounts(1).to_string(),
+            U128(10),
+            accounts(2).to_string(),
+        );
+        contract.swap(0, accounts(2).to_string(), amount, accounts(1).to_string());
+    }
+    let pool = &contract.pools[0];
+    println!("len = {}", pool.positions.len());
+    assert!(pool.positions.len() == 100);
+}
+
+#[test]
+fn open_many_positions_with_swap2() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    for i in 3..153 {
+        let account = format!("\"{i}.testnet\"");
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(1),
+            U128(2000000),
+        );
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        deposit_tokens(
+            &mut context,
+            &mut contract,
+            serde_json::from_str(account.as_str()).unwrap(),
+            accounts(2),
+            U128(3000000),
+        );
+        testing_env!(context
+            .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
+        let amount = contract.swap(
+            0,
+            accounts(1).to_string(),
+            U128(10),
+            accounts(2).to_string(),
+        );
+        contract.swap(0, accounts(2).to_string(), amount, accounts(1).to_string());
+    }
+    let pool = &contract.pools[0];
+    println!("len = {}", pool.positions.len());
+    assert!(pool.positions.len() == 150);
 }

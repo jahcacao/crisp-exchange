@@ -10,7 +10,6 @@ use crate::{errors::*, BASIS_POINT};
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
-    pub id: u128,
     pub owner_id: AccountId,
     pub liquidity: f64,     // L
     pub token0_locked: f64, // x
@@ -29,7 +28,6 @@ pub struct Position {
 impl Default for Position {
     fn default() -> Self {
         Position {
-            id: 0,
             owner_id: String::new(),
             liquidity: 0.0,
             token0_locked: 0.0,
@@ -49,7 +47,6 @@ impl Default for Position {
 
 impl Position {
     pub fn new(
-        id: u128,
         owner_id: AccountId,
         token0_liquidity: Option<U128>,
         token1_liquidity: Option<U128>,
@@ -110,7 +107,6 @@ impl Position {
             );
         }
         Position {
-            id,
             owner_id,
             liquidity,
             token0_locked: x,
@@ -524,8 +520,7 @@ mod test {
 
     #[test]
     fn open_position() {
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 25.0, 121.0, 10.0);
-        assert!(position.id == 0, "{}", _BAD_POSITION_ID);
+        let position = Position::new(String::new(), Some(U128(50)), None, 25.0, 121.0, 10.0);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
             position.token0_locked.floor() == 50.0,
@@ -566,8 +561,7 @@ mod test {
 
     #[test]
     fn open_position_less_than_lower_bound() {
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 121.0, 144.0, 10.0);
-        assert!(position.id == 0, "{}", _BAD_POSITION_ID);
+        let position = Position::new(String::new(), Some(U128(50)), None, 121.0, 144.0, 10.0);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
             position.token0_locked == 50.0,
@@ -608,8 +602,7 @@ mod test {
 
     #[test]
     fn open_position_more_than_upper_bound() {
-        let position = Position::new(0, String::new(), None, Some(U128(50)), 121.0, 144.0, 13.0);
-        assert!(position.id == 0, "{}", _BAD_POSITION_ID);
+        let position = Position::new(String::new(), None, Some(U128(50)), 121.0, 144.0, 13.0);
         assert!(position.owner_id == String::new(), "{}", _NO_VALID_OWNER_ID);
         assert!(
             position.token0_locked == 0.0,
@@ -651,31 +644,30 @@ mod test {
     #[should_panic(expected = "token0 liqudity cannot be 0")]
     #[test]
     fn open_position_wrong_order_x_zero() {
-        let _position = Position::new(0, String::new(), Some(U128(0)), None, 121.0, 144.0, 11.5);
+        let _position = Position::new(String::new(), Some(U128(0)), None, 121.0, 144.0, 11.5);
     }
 
     #[should_panic(expected = "send token1 liquidity instead of token0")]
     #[test]
     fn open_position_wrong_order_x_not_zero_higher_than_upper_bound() {
-        let _position = Position::new(0, String::new(), Some(U128(1)), None, 121.0, 144.0, 13.0);
+        let _position = Position::new(String::new(), Some(U128(1)), None, 121.0, 144.0, 13.0);
     }
 
     #[should_panic(expected = "token1 liqudity cannot be 0")]
     #[test]
     fn open_position_wrong_order_y_zero() {
-        let _position = Position::new(0, String::new(), None, Some(U128(0)), 121.0, 144.0, 11.5);
+        let _position = Position::new(String::new(), None, Some(U128(0)), 121.0, 144.0, 11.5);
     }
 
     #[should_panic(expected = "send token0 liquidity instead of token1")]
     #[test]
     fn open_position_wrong_order_y_not_zero_higher_than_upper_bound() {
-        let _position = Position::new(0, String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
+        let _position = Position::new(String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
     }
 
     #[test]
     fn open_position1() {
         let position = Position::new(
-            0,
             String::new(),
             Some(U128(1000000000000000000)),
             None,
@@ -705,7 +697,6 @@ mod test {
     #[test]
     fn open_position2() {
         let position = Position::new(
-            0,
             String::new(),
             Some(U128(1000000000000000000000000)),
             None,
@@ -731,7 +722,6 @@ mod test {
     #[test]
     fn open_position3() {
         let position = Position::new(
-            0,
             String::new(),
             Some(U128(1000000000000000000000000)),
             None,
