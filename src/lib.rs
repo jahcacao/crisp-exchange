@@ -211,7 +211,7 @@ impl Contract {
         upper_bound_price: f64,
     ) -> u128 {
         self.assert_pool_exists(pool_id);
-        let id = self.positions_opened;
+        let position_id = self.positions_opened;
         self.positions_opened += 1;
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
@@ -233,62 +233,62 @@ impl Contract {
             &pool.token1,
             position.token1_locked.round() as u128,
         );
-        pool.open_position(id, position.clone());
+        pool.open_position(position_id, position.clone());
         pool.refresh(env::block_timestamp());
-        let metadata = TokenMetadata::new(pool_id, id, &position);
-        self.nft_mint(id.to_string(), account_id.clone(), metadata);
-        id
+        let metadata = TokenMetadata::new(pool_id, position_id, &position);
+        self.nft_mint(position_id.to_string(), account_id.clone(), metadata);
+        position_id
     }
 
-    pub fn close_position(&mut self, pool_id: usize, id: u128) {
+    pub fn close_position(&mut self, pool_id: usize, position_id: u128) {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        let token = self.tokens_by_id.get(&id.to_string()).unwrap();
+        let token = self.tokens_by_id.get(&position_id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
-        let position = pool.positions.get(&id).expect("Not found");
+        let position = pool.positions.get(&position_id).expect("Not found");
         let amount0 = position.token0_locked.round() as u128;
         let amount1 = position.token1_locked.round() as u128;
         self.accounts
             .increase_balance(&account_id, &pool.token0, amount0);
         self.accounts
             .increase_balance(&account_id, &pool.token1, amount1);
-        pool.close_position(id);
+        pool.close_position(position_id);
     }
 
     pub fn add_liquidity(
         &mut self,
         pool_id: usize,
-        id: u128,
+        position_id: u128,
         token0_liquidity: Option<U128>,
         token1_liquidity: Option<U128>,
     ) {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        let token = self.tokens_by_id.get(&id.to_string()).unwrap();
+        let token = self.tokens_by_id.get(&position_id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
-        let mut position = pool.positions.get(&id).expect("Not found").clone();
+        let mut position = pool.positions.get(&position_id).expect("Not found").clone();
         position.add_liquidity(token0_liquidity, token1_liquidity, pool.sqrt_price);
-        pool.positions.insert(id, position);
+        pool.positions.insert(position_id, position);
         pool.refresh(env::block_timestamp());
     }
 
     pub fn remove_liquidity(
         &mut self,
         pool_id: usize,
-        id: u128,
+        position_id: u128,
         token0_liquidity: Option<U128>,
         token1_liquidity: Option<U128>,
     ) {
         self.assert_pool_exists(pool_id);
         let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
-        let token = self.tokens_by_id.get(&id.to_string()).unwrap();
+        let token = self.tokens_by_id.get(&position_id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
-        let mut position = pool.positions.get(&id).expect("Not found").clone();
+        let mut position = pool.positions.get(&position_id).expect("Not found").clone();
         position.remove_liquidity(token0_liquidity, token1_liquidity, pool.sqrt_price);
-        pool.positions.insert(id, position);
+        pool.positions.insert(position_id, position);
         pool.refresh(env::block_timestamp());
     }
 }
