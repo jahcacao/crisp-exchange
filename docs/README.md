@@ -135,7 +135,7 @@ Returns position id:
 ```
 Close position:
 ```
-near call $CONTRACT_ID close_position '{"pool_id": 0, "id": 12}' --accountId $USER_ID
+near call $CONTRACT_ID close_position '{"pool_id": 0, "position_id": 12}' --accountId $USER_ID
 ```
 Returns bool (true if positions was actually closed and false otherwise)
 ```
@@ -143,12 +143,12 @@ true
 ```
 Add tokens to the position:
 ```
-near call $CONTRACT_ID add_liquidity '{"pool_id": 0, "id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
+near call $CONTRACT_ID add_liquidity '{"pool_id": 0, "position_id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
 ```
 Returns bool (true if liquidity was actually added to the position and false otherwise)
 
 Add tokens to the position:
 ```
-near call $CONTRACT_ID remove_liquidity '{"pool_id": 0, "id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
+near call $CONTRACT_ID remove_liquidity '{"pool_id": 0, "position_id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
 ```
 Returns bool (true if liquidity was actually removed from the position and false otherwise)
