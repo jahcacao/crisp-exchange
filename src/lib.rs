@@ -1,4 +1,4 @@
-use balance::AccountsInfo;
+use balance::BalancesMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::{env, near_bindgen};
@@ -43,7 +43,7 @@ pub struct Contract {
     pub owner_id: AccountId,
     pub pools: Vec<Pool>,
     //  Accounts registered, keeping track all the amounts deposited
-    pub accounts: AccountsInfo,
+    pub balances_map: BalancesMap,
     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
     pub tokens_by_id: LookupMap<TokenId, Token>,
     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
@@ -67,9 +67,7 @@ impl Contract {
         Self {
             owner_id,
             pools: Vec::new(),
-            accounts: AccountsInfo {
-                accounts_info: UnorderedMap::new(b"a"),
-            },
+            balances_map: UnorderedMap::new(b"a"),
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(
@@ -126,7 +124,7 @@ impl Contract {
     }
 
     pub fn get_balance(&self, account_id: &AccountId, token: &AccountId) -> U128 {
-        let balance = match self.accounts.get_balance(account_id) {
+        let balance = match self.balances_map.get(account_id) {
             None => Some(0),
             Some(balance) => balance.get(token),
         };
@@ -138,7 +136,7 @@ impl Contract {
     }
 
     pub fn get_balance_all_tokens(&self, account_id: &AccountId) -> String {
-        if let Some(balance) = self.accounts.get_balance(account_id) {
+        if let Some(balance) = self.balances_map.get(account_id) {
             let mut result = String::new();
             for (token, amount) in balance.iter() {
                 result += &format!("{token}: {amount}, ");
@@ -152,7 +150,7 @@ impl Contract {
     pub fn withdraw(&mut self, token: AccountId, amount: U128) {
         let account_id = env::predecessor_account_id();
         let amount: u128 = amount.into();
-        self.accounts.withdraw(&account_id, &token, amount);
+        self.balance_withdraw(&account_id, &token, amount);
     }
 
     pub fn get_return(&self, pool_id: usize, token_in: &AccountId, amount_in: U128) -> U128 {
@@ -183,20 +181,18 @@ impl Contract {
         token_out: AccountId,
     ) -> U128 {
         self.assert_pool_exists(pool_id);
-        let pool = &mut self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         let amount_in: u128 = amount_in.into();
-        self.accounts
-            .decrease_balance(&account_id, &token_in, amount_in);
+        self.decrease_balance(&account_id, &token_in, amount_in);
+        let pool = &mut self.pools[pool_id];
         let swap_result = pool.get_swap_result(&token_in, amount_in, pool::SwapDirection::Return);
-        self.accounts
-            .apply_collected_fees(&swap_result.collected_fees, &token_out);
-        self.accounts
-            .increase_balance(&account_id, &token_out, swap_result.amount.round() as u128);
+        self.apply_collected_fees(&swap_result.collected_fees, &token_out);
+        self.increase_balance(&account_id, &token_out, swap_result.amount.round() as u128);
+        let pool = &self.pools[pool_id];
         let fees_amount = swap_result.amount * (pool.protocol_fee as f64 + pool.rewards as f64)
             / BASIS_POINT_TO_PERCENT;
-        self.accounts
-            .decrease_balance(&account_id, &token_out, fees_amount.round() as u128);
+        self.decrease_balance(&account_id, &token_out, fees_amount.round() as u128);
+        let pool = &mut self.pools[pool_id];
         pool.apply_swap_result(&swap_result);
         pool.refresh(env::block_timestamp());
         (swap_result.amount.round() as u128).into()
@@ -213,7 +209,7 @@ impl Contract {
         self.assert_pool_exists(pool_id);
         let position_id = self.positions_opened;
         self.positions_opened += 1;
-        let pool = &mut self.pools[pool_id];
+        let pool = &self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         let position = Position::new(
             account_id.clone(),
@@ -223,16 +219,11 @@ impl Contract {
             upper_bound_price,
             pool.sqrt_price,
         );
-        self.accounts.decrease_balance(
-            &account_id,
-            &pool.token0,
-            position.token0_locked.round() as u128,
-        );
-        self.accounts.decrease_balance(
-            &account_id,
-            &pool.token1,
-            position.token1_locked.round() as u128,
-        );
+        let token0 = pool.token0.clone();
+        let token1 = pool.token1.clone();
+        self.decrease_balance(&account_id, &token0, position.token0_locked.round() as u128);
+        self.decrease_balance(&account_id, &token1, position.token1_locked.round() as u128);
+        let pool = &mut self.pools[pool_id];
         pool.open_position(position_id, position.clone());
         pool.refresh(env::block_timestamp());
         let metadata = TokenMetadata::new(pool_id, position_id, &position);
@@ -242,17 +233,18 @@ impl Contract {
 
     pub fn close_position(&mut self, pool_id: usize, position_id: u128) {
         self.assert_pool_exists(pool_id);
-        let pool = &mut self.pools[pool_id];
+        let pool = &self.pools[pool_id];
         let account_id = env::predecessor_account_id();
         let token = self.tokens_by_id.get(&position_id.to_string()).unwrap();
         Self::assert_account_owns_nft(&account_id, &token.owner_id);
         let position = pool.positions.get(&position_id).expect("Not found");
         let amount0 = position.token0_locked.round() as u128;
         let amount1 = position.token1_locked.round() as u128;
-        self.accounts
-            .increase_balance(&account_id, &pool.token0, amount0);
-        self.accounts
-            .increase_balance(&account_id, &pool.token1, amount1);
+        let token0 = pool.token0.clone();
+        let token1 = pool.token1.clone();
+        self.increase_balance(&account_id, &token0, amount0);
+        self.increase_balance(&account_id, &token1, amount1);
+        let pool = &mut self.pools[pool_id];
         pool.close_position(position_id);
     }
 
