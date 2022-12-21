@@ -1078,8 +1078,8 @@ fn add_and_remove_liquidity1() {
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 9990.0, 11000.0);
-    contract.remove_liquidity(0, U128(0), Some(U128(10000)), None);
-    contract.add_liquidity(0, U128(0), Some(U128(10000)), None);
+    contract.remove_liquidity(0, 0, Some(U128(10000)), None);
+    contract.add_liquidity(0, 0, Some(U128(10000)), None);
     let pool = &contract.pools[0];
     let position = &pool.positions.get(&0).unwrap();
     assert!(position.token0_locked.round() == 100000.0);
@@ -1115,8 +1115,8 @@ fn add_and_remove_liquidity2() {
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(100000)), 9990.0, 11000.0);
-    contract.remove_liquidity(0, U128(0), None, Some(U128(10000)));
-    contract.add_liquidity(0, U128(0), None, Some(U128(10000)));
+    contract.remove_liquidity(0, 0, None, Some(U128(10000)));
+    contract.add_liquidity(0, 0, None, Some(U128(10000)));
     let pool = &contract.pools[0];
     let position = &pool.positions.get(&0).unwrap();
     assert!(position.token1_locked.round() == 100000.0);
