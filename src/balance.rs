@@ -5,12 +5,13 @@ use std::collections::HashMap;
 
 use crate::errors::{TOKEN_HAS_NOT_BEEN_DEPOSITED, YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL};
 use crate::pool::CollectedFee;
-use crate::Contract;
 
 pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
 
 pub type BalancesMap = UnorderedMap<AccountId, Balance>;
 type Balance = UnorderedMap<AccountId, u128>;
+
+pub use crate::*;
 
 impl Contract {
     pub fn deposit_ft(&mut self, account_id: &AccountId, token_in: &AccountId, amount: u128) {
