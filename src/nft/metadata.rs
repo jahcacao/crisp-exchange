@@ -77,10 +77,10 @@ impl NonFungibleTokenMetadata for Contract {
 }
 
 impl TokenMetadata {
-    pub fn new(pool_id: usize, position: &Position) -> TokenMetadata {
+    pub fn new(pool_id: usize, id: u128, position: &Position) -> TokenMetadata {
         let description = Some(format!(
             "pool: {}, position_id: {}, lower_tick: {}, upper_tick: {}",
-            pool_id, position.id, position.tick_lower_bound_price, position.tick_upper_bound_price
+            pool_id, id, position.tick_lower_bound_price, position.tick_upper_bound_price
         ));
         TokenMetadata {
             title: Some("Crisp Ex LP Token".to_string()),

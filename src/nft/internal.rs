@@ -195,10 +195,10 @@ impl Contract {
 
         let id = token_id.parse::<u128>().unwrap();
         for pool in &mut self.pools {
-            for position in &mut pool.positions {
-                if id == position.id {
-                    position.owner_id = receiver_id.to_string();
-                }
+            if let Some(position) = pool.positions.get(&id) {
+                let mut position = position.clone();
+                position.owner_id = receiver_id.to_string();
+                pool.positions.insert(id, position);
             }
         }
 

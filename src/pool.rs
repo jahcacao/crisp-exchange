@@ -6,14 +6,25 @@ use near_sdk::{
     AccountId,
 };
 
-use crate::position::{sqrt_price_to_tick, tick_to_sqrt_price, Position};
+use crate::{
+    errors::NOT_ENOUGH_LIQUIDITY_IN_POOL,
+    position::{sqrt_price_to_tick, tick_to_sqrt_price, Position},
+    BASIS_POINT_TO_PERCENT,
+};
+
+#[derive(Clone)]
+pub struct CollectedFee {
+    pub account_id: AccountId,
+    pub amount: f64,
+    pub token: AccountId,
+}
 
 #[derive(Clone)]
 pub struct SwapResult {
     pub amount: f64,
     pub new_liquidity: f64,
     pub new_sqrt_price: f64,
-    pub collected_fees: HashMap<AccountId, f64>,
+    pub collected_fees: HashMap<u128, CollectedFee>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -29,8 +40,10 @@ pub struct Pool {
     pub token1: AccountId,
     pub liquidity: f64,
     pub sqrt_price: f64,
+    pub token0_locked: u128,
+    pub token1_locked: u128,
     pub tick: i32,
-    pub positions: Vec<Position>,
+    pub positions: HashMap<u128, Position>,
     pub protocol_fee: u16,
     pub rewards: u16,
 }
@@ -49,7 +62,9 @@ impl Pool {
             token1,
             liquidity: 0.0,
             sqrt_price: price.sqrt(),
-            positions: vec![],
+            token0_locked: 0,
+            token1_locked: 0,
+            positions: HashMap::new(),
             tick,
             protocol_fee,
             rewards,
@@ -62,15 +77,26 @@ impl Pool {
         amount: u128,
         direction: SwapDirection,
     ) -> SwapResult {
+        if direction == SwapDirection::Return {
+            if token == &self.token0 {
+                if amount > self.token0_locked {
+                    panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
+                }
+            } else {
+                if amount > self.token1_locked {
+                    panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
+                }
+            }
+        }
         let mut collected = 0.0;
-        let mut tick = self.tick;
+        let mut tick = sqrt_price_to_tick(self.sqrt_price);
         let mut price = self.sqrt_price;
         let mut remaining = amount as f64;
-        let mut collected_fees: HashMap<AccountId, f64> = HashMap::new();
+        let mut collected_fees: HashMap<u128, CollectedFee> = HashMap::new();
         while remaining > 0.0 {
             let liquidity = self.calculate_liquidity_within_tick(price);
             if liquidity == 0.0 && !self.check_available_liquidity(price, token, direction) {
-                panic!("Not enough liquidity in pool to cover this swap");
+                panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
             }
             let temp = match direction {
                 SwapDirection::Expense => self.get_amount_in_within_tick(
@@ -88,7 +114,7 @@ impl Pool {
                     liquidity,
                 ),
             };
-            self.collect_fees(liquidity, price, temp, &mut collected_fees);
+            self.collect_fees(liquidity, price, temp, token, &mut collected_fees);
             collected += temp;
         }
         let liquidity = self.calculate_liquidity_within_tick(price);
@@ -105,15 +131,34 @@ impl Pool {
         liquidity: f64,
         sqrt_price: f64,
         amount: f64,
-        map: &mut HashMap<AccountId, f64>,
+        token: &AccountId,
+        collected_fees: &mut HashMap<u128, CollectedFee>,
     ) {
-        for position in &self.positions {
+        for (i, position) in &self.positions {
             if position.is_active(sqrt_price) {
-                let share =
-                    (position.liquidity / liquidity) * amount * (self.rewards as f64 / 10000.0);
-                let old_share = map.get(&position.owner_id).unwrap_or(&0.0);
-                map.insert(position.owner_id.to_string(), share + old_share);
+                let share = (position.liquidity / liquidity)
+                    * amount
+                    * (self.rewards as f64 / BASIS_POINT_TO_PERCENT);
+                let old_collected_fee_option = collected_fees.get(&i);
+                let mut old_share = 0.0;
+                if let Some(old_collected_fee) = old_collected_fee_option {
+                    old_share = old_collected_fee.amount;
+                }
+                let collected_fee = CollectedFee {
+                    account_id: position.owner_id.clone(),
+                    amount: share + old_share,
+                    token: self.toggle_token(token),
+                };
+                collected_fees.insert(*i, collected_fee);
             }
+        }
+    }
+
+    fn toggle_token(&self, token: &AccountId) -> AccountId {
+        if token == &self.token0 {
+            self.token1.to_string()
+        } else {
+            self.token0.to_string()
         }
     }
 
@@ -123,7 +168,7 @@ impl Pool {
         token: &AccountId,
         direction: SwapDirection,
     ) -> bool {
-        for position in &self.positions {
+        for (_, position) in &self.positions {
             if direction == SwapDirection::Expense && *token == self.token1
                 || direction == SwapDirection::Return && *token == self.token0
             {
@@ -143,7 +188,7 @@ impl Pool {
 
     fn calculate_liquidity_within_tick(&self, sqrt_price: f64) -> f64 {
         let mut liquidity = 0.0;
-        for position in &self.positions {
+        for (_, position) in &self.positions {
             if position.is_active(sqrt_price) {
                 liquidity += position.liquidity;
             }
@@ -161,32 +206,33 @@ impl Pool {
     ) -> f64 {
         let mut new_sqrt_price;
         let mut amount_in;
+        let amount_out;
         if token_out == &self.token1 {
             let new_tick = *tick - 1;
             new_sqrt_price = tick_to_sqrt_price(new_tick);
             amount_in = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
-            let amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
-            if -amount_out > *remaining {
+            amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
+            if amount_out.abs() > *remaining {
                 let delta_sqrt_price = *remaining / liquidity;
                 new_sqrt_price = *sqrt_price - delta_sqrt_price;
                 amount_in = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
                 *remaining = 0.0;
             } else {
-                *remaining += amount_out;
+                *remaining -= amount_out.abs();
                 *tick -= 1;
             }
         } else {
             let new_tick = *tick + 1;
             new_sqrt_price = tick_to_sqrt_price(new_tick);
             amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
-            let amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
-            if -amount_out > *remaining {
+            amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
+            if amount_out.abs() > *remaining {
                 let delta_reversed_sqrt_price = *remaining / liquidity;
                 new_sqrt_price = *sqrt_price / (-delta_reversed_sqrt_price * *sqrt_price + 1.0);
                 amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
                 *remaining = 0.0;
             } else {
-                *remaining += amount_out;
+                *remaining -= amount_out.abs();
                 *tick += 1;
             }
         }
@@ -204,32 +250,41 @@ impl Pool {
     ) -> f64 {
         let mut new_sqrt_price;
         let mut amount_out;
+        let amount_in;
         if token_in == &self.token1 {
             let new_tick = *tick + 1;
             new_sqrt_price = tick_to_sqrt_price(new_tick);
+            amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
             amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
-            let amount_in = (new_sqrt_price - *sqrt_price) * liquidity;
+            assert!(new_sqrt_price > *sqrt_price);
+            assert!(amount_out < 0.0);
             if amount_in > *remaining {
                 let delta_sqrt_price = *remaining / liquidity;
                 new_sqrt_price = *sqrt_price + delta_sqrt_price;
                 amount_out = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
+                assert!(new_sqrt_price > *sqrt_price);
+                assert!(amount_out < 0.0);
                 *remaining = 0.0;
             } else {
-                *remaining -= amount_in;
+                *remaining -= amount_in.abs();
                 *tick += 1;
             }
         } else {
             let new_tick = *tick - 1;
             new_sqrt_price = tick_to_sqrt_price(new_tick);
+            amount_in = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
             amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
-            let amount_in = (1.0 / new_sqrt_price - 1.0 / *sqrt_price) * liquidity;
+            assert!(new_sqrt_price < *sqrt_price);
+            assert!(amount_out < 0.0);
             if amount_in > *remaining {
                 let delta_reversed_sqrt_price = *remaining / liquidity;
-                new_sqrt_price = *sqrt_price / (-delta_reversed_sqrt_price * *sqrt_price + 1.0);
+                new_sqrt_price = *sqrt_price / (delta_reversed_sqrt_price * *sqrt_price + 1.0);
                 amount_out = (new_sqrt_price - *sqrt_price) * liquidity;
+                assert!(new_sqrt_price < *sqrt_price);
+                assert!(amount_out < 0.0);
                 *remaining = 0.0;
             } else {
-                *remaining -= amount_in;
+                *remaining -= amount_in.abs();
                 *tick -= 1;
             }
         }
@@ -241,34 +296,50 @@ impl Pool {
         self.sqrt_price
     }
 
-    pub fn refresh_liquidity(&mut self) {
-        self.liquidity = self.calculate_liquidity_within_tick(self.sqrt_price);
-    }
-
-    pub fn refresh_positions(&mut self, current_timestamp: u64) {
-        for position in &mut self.positions {
+    pub fn refresh(&mut self, current_timestamp: u64) {
+        let mut liquidity = 0.0;
+        let mut token0_locked = 0.0;
+        let mut token1_locked = 0.0;
+        for (_, position) in &mut self.positions {
             position.refresh(self.sqrt_price, current_timestamp);
+            if position.is_active(self.sqrt_price) {
+                liquidity += position.liquidity;
+            }
+            token0_locked += position.token0_locked;
+            token1_locked += position.token1_locked;
         }
+        self.liquidity = liquidity;
+        self.token0_locked = token0_locked.round() as u128;
+        self.token1_locked = token1_locked.round() as u128;
     }
 
-    pub fn open_position(&mut self, position: Position) {
-        if position.is_active(self.sqrt_price) {
-            self.liquidity += position.liquidity;
-        }
-        self.positions.push(position);
+    pub fn open_position(&mut self, id: u128, position: Position) {
+        self.positions.insert(id, position);
     }
 
-    pub fn close_position(&mut self, id: usize) {
-        let position = &self.positions[id];
+    pub fn close_position(&mut self, id: u128) {
+        let position = self.positions.get(&id).unwrap();
         if position.is_active(self.sqrt_price) {
             self.liquidity -= position.liquidity;
+            self.token0_locked -= position.token0_locked.round() as u128;
+            self.token1_locked -= position.token1_locked.round() as u128;
         }
-        self.positions.remove(id);
+        self.positions.remove(&id);
     }
 
     pub fn apply_swap_result(&mut self, swap_result: &SwapResult) {
         self.liquidity = swap_result.new_liquidity;
         self.sqrt_price = swap_result.new_sqrt_price;
+        self.tick = sqrt_price_to_tick(self.sqrt_price);
+        for (id, collected_fee) in &swap_result.collected_fees {
+            let mut position = self.positions.get(&id).unwrap().clone();
+            if collected_fee.token == self.token0 {
+                position.fees_earned_token0 += collected_fee.amount.round() as u128;
+            } else {
+                position.fees_earned_token1 += collected_fee.amount.round() as u128;
+            }
+            self.positions.insert(*id, position);
+        }
     }
 }
 
@@ -280,13 +351,13 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
-        assert!(position.liquidity == 376.3440860215054);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token0, 10, SwapDirection::Expense);
-        assert!(exp.amount.floor() == 601.0);
-        assert!(exp.new_sqrt_price.floor() == 8.0);
-        assert!(exp.new_liquidity.floor() == 376.0);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
+        assert!(position.liquidity == 376.34409850346157);
+        pool.open_position(0, position);
+        let result = pool.get_swap_result(&token0, 10, SwapDirection::Expense);
+        assert!(result.amount == 601.965597403578);
+        assert!(result.new_sqrt_price == 8.599508534336799);
+        assert!(result.new_liquidity == 376.34409850346157);
     }
 
     #[test]
@@ -294,13 +365,13 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
-        assert!(position.liquidity == 376.3440860215054);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
-        assert!(exp.amount.floor() == 0.0);
-        assert!(exp.new_sqrt_price.floor() == 6.0);
-        assert!(exp.new_liquidity.floor() == 376.0);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
+        assert!(position.liquidity == 376.34409850346157);
+        pool.open_position(0, position);
+        let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
+        assert!(result.amount == 0.20485926166133644);
+        assert!(result.new_sqrt_price == 6.973428572309849);
+        assert!(result.new_liquidity == 376.34409850346157);
     }
 
     #[test]
@@ -308,9 +379,10 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
-        pool.open_position(position);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
         assert!(exp.amount.floor() == 98.0);
         assert!(exp.new_sqrt_price.floor() == 9.0);
@@ -318,31 +390,35 @@ mod test {
     }
 
     #[test]
-    fn pool_get_return_y() {
+    fn pool_get_return_y1() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token1, 1000, SwapDirection::Return);
-        assert!(exp.amount.floor() == 8.0);
-        assert!(exp.new_sqrt_price.floor() == 11.0);
-        assert!(exp.new_liquidity.floor() == 555.0);
+        println!("before opening position");
+        pool.open_position(0, position);
+        println!("opening position");
+        pool.refresh(0);
+        println!("refreshed");
+        let result = pool.get_swap_result(&token1, 1000, SwapDirection::Return);
+        println!("after result");
+        assert!(result.amount.floor() == 8.0);
+        assert!(result.new_sqrt_price.floor() == 11.0);
+        assert!(result.new_liquidity.floor() == 555.0);
     }
     #[test]
     fn pool_get_expense_x_out_within_one_tick() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
-        assert_eq!(position.liquidity.floor(), 2574.0);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token0, 1, SwapDirection::Expense);
-        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        let position = Position::new(String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
+        assert_eq!(position.liquidity, 2578.6245298379777);
+        pool.open_position(0, position);
+        pool.refresh(0);
+        let result = pool.get_swap_result(&token0, 1, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(result.new_sqrt_price);
         assert_ne!(new_tick, pool.tick);
-        println!("new_tick = {}", new_tick);
-        println!("pool_tick = {}", pool.tick);
     }
 
     #[test]
@@ -350,52 +426,56 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 25.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
-        assert_eq!(position.liquidity.floor(), 2574.0);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
-        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        let position = Position::new(String::new(), Some(U128(10)), None, 20.0, 26.0, 5.0);
+        assert_eq!(position.liquidity, 2578.6245298379777);
+        pool.open_position(0, position);
+        pool.refresh(0);
+        let result = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(result.new_sqrt_price);
         assert_ne!(new_tick, pool.tick);
-        println!("new_tick = {}", new_tick);
-        println!("pool_tick = {}", pool.tick);
     }
+
     #[test]
     fn pool_get_expense_x_in_within_one_tick() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
-        // assert_eq!(position.liquidity.floor(),1007493.0);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token0, 5, SwapDirection::Expense);
-        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        let position = Position::new(String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
+        assert_eq!(position.liquidity, 1012698.5416276127);
+        pool.open_position(0, position);
+        pool.refresh(0);
+        let result = pool.get_swap_result(&token0, 5, SwapDirection::Expense);
+        let new_tick = sqrt_price_to_tick(result.new_sqrt_price);
         assert_eq!(new_tick, pool.tick);
-        println!("new_tick = {}", new_tick);
-        println!("pool_tick = {}", pool.tick);
     }
+
     #[test]
     fn pool_get_expense_y_in_within_one_tick() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
-        assert_eq!(position.liquidity.floor(), 1007493.0);
-        pool.open_position(position);
+        let position = Position::new(String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
+        assert_eq!(position.liquidity, 1012698.5416276127);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let exp = pool.get_swap_result(&token1, 1, SwapDirection::Expense);
         let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
         assert_eq!(new_tick, pool.tick);
-        println!("new_tick = {}", new_tick);
-        println!("pool_tick = {}", pool.tick);
     }
     #[test]
     fn pool_get_return_x_within_one_tick() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
-        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
-        pool.open_position(position);
-        let exp = pool.get_swap_result(&token0, 1, SwapDirection::Return);
-        let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 105.0, 0, 0);
+        let position = Position::new(String::new(), Some(U128(5000)), None, 90.0, 110.0, 10.0);
+        pool.open_position(0, position);
+        pool.refresh(0);
+        println!("pool.token0_locked = {}", pool.token0_locked);
+        println!("pool.token1_locked = {}", pool.token1_locked);
+        let result = pool.get_swap_result(&token0, 1, SwapDirection::Return);
+        let new_tick = sqrt_price_to_tick(result.new_sqrt_price);
+        println!("new_tick = {new_tick}");
+        println!("pool.tick = {}", pool.tick);
         assert!(new_tick == pool.tick);
     }
 
@@ -404,8 +484,9 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
-        pool.open_position(position);
+        let position = Position::new(String::new(), Some(U128(500)), None, 99.0, 101.0, 10.0);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let exp = pool.get_swap_result(&token1, 1, SwapDirection::Return);
         let new_tick = sqrt_price_to_tick(exp.new_sqrt_price);
         assert!(new_tick == pool.tick);
@@ -430,13 +511,13 @@ mod test {
     }
 
     #[test]
-    fn pool_get_amount_many_positions() {
+    #[should_panic(expected = "Not enough liquidity in pool to cover this swap")]
+    fn pool_get_amount_many_positions_panic() {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
         for i in 1..100 {
             let position = Position::new(
-                0,
                 String::new(),
                 Some(U128(i * 100)),
                 None,
@@ -444,9 +525,35 @@ mod test {
                 100.0 + i as f64,
                 10.0,
             );
-            pool.open_position(position);
+            pool.open_position(i, position);
+            pool.refresh(0);
         }
+        println!("pool.token0_locked = {}", pool.token0_locked);
+        println!("pool.token1_locked = {}", pool.token1_locked);
         pool.get_swap_result(&token0, 1000000, SwapDirection::Return);
+        pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
+    }
+
+    #[test]
+    fn pool_get_amount_many_positions() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
+        for i in 1..100 {
+            let position = Position::new(
+                String::new(),
+                Some(U128(i * 100)),
+                None,
+                100.0 - i as f64,
+                100.0 + i as f64,
+                10.0,
+            );
+            pool.open_position(i, position);
+            pool.refresh(0);
+        }
+        println!("pool.token0_locked = {}", pool.token0_locked);
+        println!("pool.token1_locked = {}", pool.token1_locked);
+        pool.get_swap_result(&token0, 495000, SwapDirection::Return);
         pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
     }
 
@@ -455,9 +562,10 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
-        pool.open_position(position);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let result = pool.get_swap_result(&token0, 1, SwapDirection::Return);
         pool.apply_swap_result(&result);
         assert!(pool.sqrt_price.floor() == 9.0);
@@ -469,13 +577,14 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
-        let position = Position::new(0, String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
-        assert!(position.liquidity == 376.3440860215054);
-        pool.open_position(position);
+        let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 7.0);
+        assert!(position.liquidity == 376.34409850346157);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         pool.apply_swap_result(&result);
-        assert!(pool.sqrt_price.floor() == 6.0);
-        assert!(pool.liquidity.floor() == 376.0);
+        assert!(pool.sqrt_price == 6.973428572309849);
+        assert!(pool.liquidity == 376.34409850346157);
     }
 
     #[test]
@@ -484,7 +593,6 @@ mod test {
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 100, 100);
         let position = Position::new(
-            0,
             "user.near".to_string(),
             Some(U128(50)),
             None,
@@ -492,10 +600,14 @@ mod test {
             10000.0,
             7.0,
         );
-        pool.open_position(position);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
     }
 
@@ -505,7 +617,6 @@ mod test {
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 100, 100);
         let position = Position::new(
-            0,
             "user.near".to_string(),
             Some(U128(50)),
             None,
@@ -513,10 +624,14 @@ mod test {
             10000.0,
             7.0,
         );
-        pool.open_position(position);
+        pool.open_position(0, position);
+        pool.refresh(0);
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Return);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
     }
 
@@ -525,9 +640,8 @@ mod test {
         let token0 = "first".to_string();
         let token1 = "second".to_string();
         let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 100, 100);
-        for _ in 0..9 {
+        for i in 0..9 {
             let position = Position::new(
-                0,
                 "user.near".to_string(),
                 Some(U128(50)),
                 None,
@@ -535,11 +649,135 @@ mod test {
                 10000.0,
                 7.0,
             );
-            pool.open_position(position);
+            pool.open_position(i, position);
+            pool.refresh(0);
         }
         let result = pool.get_swap_result(&token1, 10, SwapDirection::Expense);
         let amount = result.amount / 100.0;
-        let fee = *result.collected_fees.get("user.near").unwrap();
+        let mut fee = 0.0;
+        for (_, collected_fee) in result.collected_fees {
+            fee += collected_fee.amount;
+        }
         assert!((amount - fee).abs() < 0.00001);
+    }
+
+    #[test]
+    fn pool_add_liquidity1() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            "user.near".to_string(),
+            Some(U128(50)),
+            None,
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        assert!(position.token0_locked.round() == 50.0);
+        let liquidity1 = position.liquidity;
+        let token1_locked1 = position.token1_locked;
+        position.add_liquidity(Some(U128(100)), None, 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        assert!(position.token0_locked.round() == 150.0);
+        let liquidity2 = position.liquidity;
+        let token1_locked2 = position.token1_locked;
+        assert!((liquidity2 / liquidity1) == (token1_locked2 / token1_locked1));
+    }
+
+    #[test]
+    fn pool_add_liquidity2() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            "user.near".to_string(),
+            None,
+            Some(U128(50)),
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        assert!(position.token1_locked.round() == 50.0);
+        let liquidity1 = position.liquidity;
+        let token0_locked1 = position.token0_locked;
+        position.add_liquidity(None, Some(U128(100)), 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        assert!(position.token1_locked.round() == 150.0);
+        let liquidity2 = position.liquidity;
+        let token0_locked2 = position.token0_locked;
+        assert!((liquidity2 / liquidity1) == (token0_locked2 / token0_locked1));
+    }
+
+    #[test]
+    fn pool_remove_liquidity1() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            "user.near".to_string(),
+            Some(U128(150)),
+            None,
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token0_locked.round() == 150.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity1 = position.liquidity;
+        println!("position.token1_locked = {}", position.token1_locked);
+        let token1_locked1 = position.token1_locked;
+        position.remove_liquidity(Some(U128(100)), None, 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token0_locked.round() == 50.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity2 = position.liquidity;
+        let token1_locked2 = position.token1_locked;
+        println!("position.token1_locked = {}", position.token1_locked);
+        assert!((liquidity1 / liquidity2) == (token1_locked1 / token1_locked2));
+    }
+
+    #[test]
+    fn pool_remove_liquidity2() {
+        let token0 = "first".to_string();
+        let token1 = "second".to_string();
+        let mut pool = Pool::new(token0.clone(), token1.clone(), 49.0, 0, 0);
+        let mut position = Position::new(
+            "user.near".to_string(),
+            None,
+            Some(U128(150)),
+            1.0,
+            10000.0,
+            7.0,
+        );
+        position.refresh(7.0, 0);
+        pool.refresh(0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token1_locked.round() == 150.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity1 = position.liquidity;
+        println!("position.token1_locked = {}", position.token1_locked);
+        let token0_locked1 = position.token0_locked;
+        position.remove_liquidity(None, Some(U128(100)), 7.0);
+        pool.refresh(0);
+        position.refresh(7.0, 0);
+        println!("position.token0_locked = {}", position.token0_locked);
+        assert!(position.token1_locked.round() == 50.0);
+        println!("position.liquidity = {}", position.liquidity);
+        let liquidity2 = position.liquidity;
+        let token0_locked2 = position.token0_locked;
+        println!("position.token1_locked = {}", position.token1_locked);
+        assert!((liquidity1 / liquidity2) == (token0_locked1 / token0_locked2));
     }
 }

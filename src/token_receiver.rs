@@ -7,6 +7,7 @@ use crate::*;
 #[near_bindgen]
 impl FungibleTokenReceiver for Contract {
     #[allow(unreachable_code)]
+    #[allow(unused_variables)]
     fn ft_on_transfer(
         &mut self,
         sender_id: ValidAccountId,
@@ -14,8 +15,7 @@ impl FungibleTokenReceiver for Contract {
         msg: String,
     ) -> PromiseOrValue<U128> {
         let token_in = env::predecessor_account_id();
-        self.accounts
-            .deposit_ft(&sender_id.into(), &token_in, amount.into());
+        self.deposit_ft(&sender_id.into(), &token_in, amount.into());
         PromiseOrValue::Value(U128(0))
     }
 }
