@@ -45,3 +45,40 @@ impl Reserve {
         }
     }
 }
+#[cfg(test)]
+mod test {
+
+    use crate::reserve::*;
+
+    #[test]
+    fn increase_deposit_test() {
+        let mut reserve = Reserve::default();
+        let new_amount = 500;
+        assert!(reserve.deposited == 0);
+        reserve.increase_deposit(new_amount);
+        assert!(reserve.deposited == 500);
+    }
+    #[test]
+    fn decrease_deposit_test() {
+        let mut reserve = Reserve::default();
+        let new_amount = 500;
+        assert!(reserve.deposited == 0);
+        reserve.increase_deposit(new_amount);
+        assert!(reserve.deposited == 500);
+        reserve.decrease_deposit(200);
+        assert!(reserve.deposited == 300);
+    }
+    #[test]
+    fn refresh_utilization_rate_test() {
+        let mut reserve = Reserve::default();
+        reserve.utilization_rate = 100.0;
+        reserve.total_liquidity = 20;
+        reserve.borrowed = 50;
+        assert!(reserve.utilization_rate == 100.0);
+        assert!(reserve.total_liquidity == 20);
+        assert!(reserve.borrowed == 50);
+        reserve.refresh_utilization_rate();
+        assert!(reserve.utilization_rate == 2.5);
+    }
+}
+
