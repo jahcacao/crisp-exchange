@@ -72,7 +72,7 @@ mod test {
     #[test]
     fn timestamp_difference_to_coefficient_test() {
         let asset_token = "wnear".to_string();
-        let mut deposit = Deposit::new(String::new(), asset_token.clone(), 500);
+        let deposit = Deposit::new(String::new(), asset_token.clone(), 500);
         assert!(deposit.owner_id == String::new(), "{}", "No valid owner id");
         let current_timestamp = 100;
         let last_update_timestamp = 50;
@@ -125,4 +125,3 @@ mod test {
         assert_eq!(growth_1, 500);
     }
 }
-

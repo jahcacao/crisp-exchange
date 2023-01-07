@@ -81,4 +81,3 @@ mod test {
         assert!(reserve.utilization_rate == 2.5);
     }
 }
-
