@@ -14,6 +14,7 @@ pub struct Position {
     pub liquidity: f64,     // L
     pub token0_locked: f64, // x
     pub token1_locked: f64, // y
+    pub total_locked: f64,
     pub tick_lower_bound_price: i32,
     pub tick_upper_bound_price: i32,
     pub sqrt_lower_bound_price: f64, // p_a
@@ -32,6 +33,7 @@ impl Default for Position {
             liquidity: 0.0,
             token0_locked: 0.0,
             token1_locked: 0.0,
+            total_locked: 0.0,
             tick_lower_bound_price: 0,
             tick_upper_bound_price: 0,
             sqrt_lower_bound_price: 0.0,
@@ -106,11 +108,13 @@ impl Position {
                 sqrt_upper_bound_price,
             );
         }
+        let total_locked = y + x * sqrt_price * sqrt_price;
         Position {
             owner_id,
             liquidity,
             token0_locked: x,
             token1_locked: y,
+            total_locked,
             tick_lower_bound_price,
             tick_upper_bound_price,
             sqrt_lower_bound_price,
@@ -136,6 +140,7 @@ impl Position {
             self.sqrt_lower_bound_price,
             self.sqrt_upper_bound_price,
         );
+        self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
         if self.is_active {
             self.rewards_for_time = current_timestamp - self.last_update;
         }
@@ -208,6 +213,7 @@ impl Position {
                 self.sqrt_upper_bound_price,
             );
         }
+        self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
     }
 
     pub fn remove_liquidity(
@@ -273,6 +279,7 @@ impl Position {
                 self.sqrt_upper_bound_price,
             );
         }
+        self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
     }
 }
 
