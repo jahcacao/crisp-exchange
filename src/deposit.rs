@@ -33,7 +33,7 @@ impl Deposit {
         growth.round() as u128
     }
 
-    fn timestamp_difference_to_coefficient(timestamp_difference: u64, apr: u16) -> f64 {
+    pub fn timestamp_difference_to_coefficient(timestamp_difference: u64, apr: u16) -> f64 {
         (timestamp_difference as f64 / MS_IN_YEAR as f64)
             * (1_f64 + apr as f64 / BASIS_POINT_BASE as f64)
     }
