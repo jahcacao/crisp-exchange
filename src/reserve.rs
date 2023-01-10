@@ -34,6 +34,14 @@ impl Reserve {
         self.deposited -= amount;
     }
 
+    pub fn increase_borrowed(&mut self, amount: u128) {
+        self.deposited += amount;
+    }
+
+    pub fn decrease_borrowed(&mut self, amount: u128) {
+        self.deposited -= amount;
+    }
+
     pub fn calculate_liquidation_threshold(&self) -> f64 {
         0.0
     }

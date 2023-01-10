@@ -7,12 +7,13 @@ pub type BorrowId = u128;
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Borrow {
     pub asset: AccountId,
-    pub amount: u128,
+    pub borrowed: u128,
     pub collateral: u128,
     pub position_id: u128,
     pub health_factor: f64,
     pub last_update_timestamp: u64,
     pub apr: u16,
+    pub leverage: Option<u8>,
     pub fees: u128,
 }
 
@@ -22,7 +23,7 @@ impl Borrow {
     }
 
     pub fn calculate_fees(&self, current_timestamp: u64) -> u128 {
-        let fees = (self.amount as f64)
+        let fees = (self.borrowed as f64)
             * Self::timestamp_difference_to_coefficient(
                 current_timestamp - self.last_update_timestamp,
                 self.apr,
@@ -40,7 +41,7 @@ impl Borrow {
     }
 
     pub fn refresh_health_factor(&mut self) {
-        self.health_factor = self.collateral as f64 / (self.amount as f64 + self.fees as f64);
+        self.health_factor = self.collateral as f64 / (self.borrowed as f64 + self.fees as f64);
     }
 
     pub fn assert_health_factor_is_above_1(&self) {
