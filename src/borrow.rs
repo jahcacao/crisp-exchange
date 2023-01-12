@@ -6,14 +6,16 @@ use crate::deposit::{BASIS_POINT_BASE, MS_IN_YEAR};
 pub type BorrowId = u128;
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Borrow {
+    pub owner_id: AccountId,
     pub asset: AccountId,
     pub borrowed: u128,
     pub collateral: u128,
     pub position_id: u128,
+    pub pool_id: usize,
     pub health_factor: f64,
     pub last_update_timestamp: u64,
     pub apr: u16,
-    pub leverage: Option<u8>,
+    pub leverage: Option<u128>,
     pub fees: u128,
 }
 

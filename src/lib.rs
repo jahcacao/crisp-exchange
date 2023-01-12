@@ -11,6 +11,7 @@ use pool::Pool;
 
 pub use crate::balance::*;
 use crate::errors::*;
+use crate::nft::nft_core::NonFungibleTokenCore;
 use crate::position::Position;
 
 pub mod balance;
@@ -413,69 +414,124 @@ impl Contract {
         result
     }
 
-    pub fn supply_collateral_and_borrow(
-        &mut self,
-        pool_id: usize,
-        position_id: u128,
-        leverage: Option<u8>,
-    ) {
+    pub fn supply_collateral_and_borrow_simple(&mut self, pool_id: usize, position_id: u128) {
         let account_id = env::predecessor_account_id();
-        self.assert_account_owns_nft_on_lending(position_id.to_string(), &account_id);
         let pool = &self.pools[pool_id];
-        let mut position = pool.positions.get(&position_id).expect("Not found").clone();
-        let collateral0;
-        let to_borrow0;
-        let mut collateral1 = 0.0;
-        let mut to_borrow1 = 0.0;
-        let token = pool.token0.clone();
-        let health_factor;
-        if let Some(lev) = leverage {
-            assert!(lev > 1);
-            collateral0 = lev as f64 * position.token0_locked;
-            to_borrow0 = collateral0 - position.token0_locked;
-            collateral1 = lev as f64 * position.token1_locked;
-            to_borrow1 = collateral1 - position.token1_locked;
-            position.add_liquidity(Some(U128::from(to_borrow0 as u128)), None, pool.sqrt_price);
-            health_factor = lev as f64 / (lev as f64 - 1.0); // health_factor = leverage/(leverage - 1) like 2, 1.5, 1.2, 1.16 ...
-        } else {
-            collateral0 = position.total_locked;
-            to_borrow0 = BORROW_RATIO * collateral0; // health factor 1.25
-            self.increase_balance(&account_id, &token, to_borrow0.round() as u128);
-            health_factor = 1.0 / BORROW_RATIO;
-        }
+        let position = pool.positions.get(&position_id).expect("Not found").clone();
+        let token = pool.token1.clone();
+        let collateral = position.total_locked;
+        let borrowed = (BORROW_RATIO * collateral).round() as u128; // health factor 1.25
+        self.increase_balance(&account_id, &token, borrowed);
         let mut reserve = self.reserves.get(&token).unwrap();
         let pool = &self.pools[pool_id];
         let token = &pool.token1;
-        let price = pool.sqrt_price * pool.sqrt_price;
-        let borrowed = (to_borrow1 + to_borrow0 * price) as u128;
-        let collateral = (collateral1 + collateral0 * price) as u128;
         reserve.borrowed += borrowed;
-        reserve.deposited += collateral;
+        assert!(reserve.deposited >= reserve.borrowed);
         self.reserves.insert(&token, &reserve);
         let borrow = Borrow {
+            owner_id: account_id,
             asset: token.to_string(),
             borrowed,
-            collateral,
+            collateral: collateral as u128,
             position_id,
-            health_factor,
+            pool_id,
+            health_factor: 1.0 / BORROW_RATIO,
             last_update_timestamp: env::block_timestamp(),
             apr: APR_BORROW,
-            leverage,
+            leverage: None,
             fees: 0,
         };
         self.borrows.insert(&self.borrows_number, &borrow);
         self.borrows_number += 1;
+        self.nft_transfer(
+            env::current_account_id(),
+            position_id.to_string(),
+            None,
+            None,
+        );
+    }
+
+    pub fn supply_collateral_and_borrow_leveraged(
+        &mut self,
+        pool_id: usize,
+        position_id: u128,
+        leverage: u128,
+    ) {
+        assert!(leverage > 1);
+        let account_id = env::predecessor_account_id();
+        let pool = &self.pools[pool_id];
+        let token0 = pool.token0.clone();
+        let token1 = pool.token1.clone();
+        let position = pool.positions.get(&position_id).expect("Not found").clone();
+        let borrowed0 = position.token0_locked as u128 * (leverage - 1);
+        let borrowed1 = position.token1_locked as u128 * (leverage - 1);
+
+        let mut reserve = self.reserves.get(&token0).unwrap();
+        reserve.borrowed += borrowed0;
+        assert!(reserve.deposited >= reserve.borrowed);
+        self.reserves.insert(&token0, &reserve);
+
+        let mut reserve = self.reserves.get(&token1).unwrap();
+        reserve.borrowed += borrowed1;
+        assert!(reserve.deposited >= reserve.borrowed);
+        self.reserves.insert(&token1, &reserve);
+
+        self.add_liquidity(
+            pool_id,
+            position_id,
+            Some(U128::from(position.token0_locked as u128 * (leverage - 1))),
+            None,
+        );
+
+        let borrow = Borrow {
+            owner_id: account_id,
+            asset: token1,
+            borrowed: position.total_locked as u128 * (leverage - 1),
+            collateral: position.total_locked as u128 * leverage,
+            position_id,
+            pool_id,
+            health_factor: leverage as f64 / (leverage as f64 - 1.0),
+            last_update_timestamp: env::block_timestamp(),
+            apr: APR_BORROW,
+            leverage: Some(leverage),
+            fees: 0,
+        };
+        self.borrows.insert(&self.borrows_number, &borrow);
+        self.borrows_number += 1;
+        self.nft_transfer(
+            env::current_account_id(),
+            position_id.to_string(),
+            None,
+            None,
+        );
     }
 
     pub fn return_collateral_and_repay(&mut self, borrow_id: u128) {
         let account_id = env::predecessor_account_id();
-        self.assert_account_owns_nft_on_lending(borrow_id.to_string(), &account_id);
         let borrow = self.borrows.remove(&borrow_id).unwrap();
         borrow.assert_health_factor_is_above_1();
-        self.increase_balance(&account_id, &borrow.asset, borrow.borrowed - borrow.fees);
-        let mut reserve = self.reserves.get(&borrow.asset).unwrap();
-        reserve.borrowed -= borrow.borrowed;
-        self.reserves.insert(&borrow.asset, &reserve);
+        assert_eq!(account_id, borrow.owner_id);
+        if let Some(leverage) = borrow.leverage {
+            let mut reserve = self.reserves.get(&borrow.asset).unwrap();
+            reserve.borrowed -= borrow.borrowed;
+            self.reserves.insert(&borrow.asset, &reserve);
+            let pool = &self.pools[borrow.pool_id];
+            let position = pool.positions.get(&borrow.position_id).unwrap();
+            self.remove_liquidity(
+                borrow.pool_id,
+                borrow.position_id,
+                None,
+                Some(U128::from(
+                    position.token1_locked as u128 * (leverage - 1) + borrow.fees,
+                )),
+            );
+        } else {
+            self.decrease_balance(&account_id, &borrow.asset, borrow.borrowed + borrow.fees);
+            let mut reserve = self.reserves.get(&borrow.asset).unwrap();
+            reserve.borrowed -= borrow.borrowed;
+            self.reserves.insert(&borrow.asset, &reserve);
+        }
+        self.nft_transfer(account_id, borrow.position_id.to_string(), None, None);
     }
 
     pub fn get_liquidation_list(&self) -> Vec<BorrowId> {
@@ -488,21 +544,18 @@ impl Contract {
         result
     }
 
-    pub fn liquidate(&mut self, borrow_id: BorrowId, amount_in: U128, amount_out: U128) {
-        if let Some(mut borrow) = self.borrows.get(&borrow_id) {
+    pub fn liquidate(&mut self, borrow_id: BorrowId) {
+        let account_id = env::predecessor_account_id();
+        if let Some(borrow) = self.borrows.remove(&borrow_id) {
             borrow.assert_health_factor_is_under_1();
-            let discount = (1.0 - borrow.health_factor) / 2.0;
-            let discounted_collateral_sum = amount_out.0 * (1 - discount as u128);
-            assert!(discounted_collateral_sum <= amount_in.0);
-            borrow.collateral -= amount_out.0;
-            borrow.borrowed -= amount_out.0;
-            borrow.refresh_health_factor();
-            borrow.assert_health_factor_is_under_1();
-            self.borrows.insert(&borrow_id, &borrow);
+            let discount = (1.0 + borrow.health_factor) / 2.0;
+            let amount = borrow.collateral as f64;
+            let discounted_collateral_sum =
+                (amount * discount / borrow.leverage.unwrap_or(1) as f64) as u128;
+            self.decrease_balance(&account_id, &borrow.asset, discounted_collateral_sum);
+            self.nft_transfer(account_id, borrow.position_id.to_string(), None, None);
         } else {
             panic!("Borrow not found");
         }
     }
-
-    fn assert_account_owns_nft_on_lending(&self, _token_id: String, _account_id: &AccountId) {}
 }
