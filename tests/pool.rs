@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use near_sdk::env;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json;
 use near_sdk::test_utils::accounts;
@@ -1091,4 +1092,167 @@ fn open_many_positions_with_swap2() {
     let pool = &contract.pools[0];
     println!("len = {}", pool.positions.len());
     assert!(pool.positions.len() == 150);
+}
+
+#[test]
+fn create_reserve() {
+    let (mut _context, mut contract) = setup_contract();
+    assert!(contract.reserves.is_empty());
+    contract.create_reserve("usdt.testnet".to_string());
+    let reserve = contract.reserves.get(&"usdt.testnet".to_string()).unwrap();
+    assert_eq!(reserve.deposited, 0);
+    assert_eq!(reserve.borrowed, 0);
+    assert_eq!(reserve.liquidation_threshold, 0.0);
+    assert_eq!(reserve.loan_to_value, 0.0);
+    assert_eq!(reserve.target_utilization_rate, 0.0);
+    assert_eq!(reserve.total_liquidity, 0);
+    assert_eq!(reserve.utilization_rate, 0.0);
+}
+
+#[should_panic]
+#[test]
+fn create_deposit1() {
+    let (mut _context, mut contract) = setup_contract();
+    contract.create_reserve("usdt.testnet".to_string());
+    contract.create_deposit("usn.testnet".to_string(), U128::from(100));
+}
+
+#[test]
+fn create_deposit2() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.create_deposit(accounts(1).into(), U128::from(100));
+    let deposit = contract.deposits.get(&0).unwrap();
+    assert_eq!(deposit.owner_id, accounts(0).to_string());
+    assert_eq!(deposit.asset, accounts(1).to_string());
+    assert_eq!(deposit.amount, 100);
+    assert_eq!(deposit.timestamp, 0);
+    assert_eq!(deposit.last_update_timestamp, 0);
+    assert_eq!(deposit.apr, 500);
+    assert_eq!(deposit.growth, 0);
+}
+
+#[test]
+fn close_deposit() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.create_deposit(accounts(1).into(), U128::from(100));
+    contract.deposits.get(&0).unwrap();
+    contract.close_deposit(U128::from(0));
+    assert!(contract.deposits.is_empty());
+}
+
+#[test]
+fn refresh_deposit_growth() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(300),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.create_deposit(accounts(1).into(), U128::from(100));
+    contract.create_deposit(accounts(1).into(), U128::from(200));
+    let context = context.block_timestamp(31536000000);
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    context.block_index(31536000);
+    context.epoch_height(31536000);
+    assert_eq!(context.context.block_timestamp, 31536000000);
+    assert_eq!(context.context.block_index, 31536000);
+    assert_eq!(context.context.epoch_height, 31536000);
+    contract.refresh_deposits_growth();
+    let deposit1 = contract.deposits.get(&0).unwrap();
+    let deposit2 = contract.deposits.get(&1).unwrap();
+    assert_eq!(deposit1.growth, 5);
+    assert_eq!(deposit2.growth, 10);
+}
+
+#[test]
+fn take_deposit_growth() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.create_deposit(accounts(1).into(), U128::from(100));
+    let context = context.block_timestamp(31536000000);
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    context.block_index(31536000);
+    context.epoch_height(31536000);
+    contract.refresh_deposits_growth();
+    let deposit = contract.deposits.get(&0).unwrap();
+    assert_eq!(deposit.growth, 5);
+    let growth = contract.take_deposit_growth(U128::from(0), U128::from(10));
+    assert_eq!(growth, 5.into());
+    let balance = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
+    assert_eq!(balance, U128::from(5));
+}
+
+#[test]
+fn get_account_deposits() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.create_deposit(accounts(1).into(), U128::from(10));
+    contract.create_deposit(accounts(1).into(), U128::from(20));
+    contract.create_deposit(accounts(1).into(), U128::from(30));
+    contract.create_deposit(accounts(1).into(), U128::from(40));
+    let deposits = contract.get_account_deposits(accounts(0).to_string());
+    println!("deposits = {:#?}", deposits);
+}
+
+#[test]
+fn supply_collateral_and_borrow_simple() {
+    let (mut context, mut contract) = setup_contract();
+}
+
+#[test]
+fn supply_collateral_and_borrow_leveraged() {
+    let (mut context, mut contract) = setup_contract();
+}
+
+#[test]
+fn return_collateral_and_repay() {
+    let (mut context, mut contract) = setup_contract();
+}
+
+#[test]
+fn get_liquidation_list() {
+    let (mut context, mut contract) = setup_contract();
+}
+
+#[test]
+fn liquidate() {
+    let (mut context, mut contract) = setup_contract();
 }

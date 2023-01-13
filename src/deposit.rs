@@ -8,7 +8,7 @@ pub const BASIS_POINT_BASE: u16 = 10000;
 
 pub type DepositId = u128;
 
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct Deposit {
     pub owner_id: AccountId,
     pub asset: AccountId,
@@ -36,29 +36,39 @@ impl Deposit {
     }
 
     pub fn calculate_growth(&self, current_timestamp: u64) -> u128 {
+        println!("amount = {}", self.amount);
+        println!("current_timestamp = {}", current_timestamp);
+        println!(
+            "self.last_update_timestamp = {}",
+            self.last_update_timestamp
+        );
+        println!("self.apr = {}", self.apr);
         let growth = (self.amount as f64)
             * Self::timestamp_difference_to_coefficient(
                 current_timestamp - self.last_update_timestamp,
                 self.apr,
             );
+        println!("growth = {growth}");
         growth.round() as u128
     }
 
     pub fn timestamp_difference_to_coefficient(timestamp_difference: u64, apr: u16) -> f64 {
-        (timestamp_difference as f64 / MS_IN_YEAR as f64)
-            * (1_f64 + apr as f64 / BASIS_POINT_BASE as f64)
+        (timestamp_difference as f64 / MS_IN_YEAR as f64) * (apr as f64 / BASIS_POINT_BASE as f64)
     }
 
     pub fn refresh_growth(&mut self, current_timestamp: u64) {
         self.growth += self.calculate_growth(current_timestamp);
+        self.last_update_timestamp = current_timestamp;
     }
 
     pub fn take_growth(&mut self, amount: u128) -> u128 {
         if amount > self.growth {
+            println!("amount = {amount} growth = {}", self.growth);
             let result = self.growth;
             self.growth = 0;
             result
         } else {
+            println!("amount = {amount} growth = {}", self.growth);
             self.growth -= amount;
             amount
         }
@@ -80,7 +90,7 @@ mod test {
         assert_eq!(timestamp_difference, 50);
         let coefficent =
             Deposit::timestamp_difference_to_coefficient(timestamp_difference, deposit.apr);
-        assert_eq!(coefficent, 1.5854895991882293e-9);
+        assert_eq!(coefficent, 0.0);
     }
 
     #[test]
@@ -93,6 +103,7 @@ mod test {
         deposit.update_timestamp(current_timestamp);
         assert_eq!(deposit.last_update_timestamp, 50);
     }
+
     #[test]
     fn calculate_growth_test() {
         let asset_token = "wnear".to_string();
@@ -107,11 +118,12 @@ mod test {
             current_timestamp - deposit.last_update_timestamp,
             deposit.apr,
         );
-        assert_eq!(coefficentt, 2.536783358701167e-9);
+        assert_eq!(coefficentt, 0.0);
         assert!(deposit.amount == 500);
         let growth = deposit.calculate_growth(current_timestamp);
         assert_eq!(growth, 0); // ?
     }
+
     #[test]
     fn take_growth_test() {
         let asset_token = "wnear".to_string();
@@ -123,5 +135,17 @@ mod test {
         deposit.growth = 501;
         let growth_1 = deposit.take_growth(deposit.amount);
         assert_eq!(growth_1, 500);
+    }
+
+    #[test]
+    fn check_growth() {
+        let mut deposit = Deposit::new(String::new(), String::new(), 100);
+        deposit.apr = 500;
+        let index = Deposit::timestamp_difference_to_coefficient(MS_IN_YEAR, 500);
+        assert_eq!(index, 0.05);
+        let growth = deposit.calculate_growth(MS_IN_YEAR);
+        assert_eq!(growth, 5);
+        deposit.refresh_growth(MS_IN_YEAR);
+        assert_eq!(deposit.growth, 5);
     }
 }

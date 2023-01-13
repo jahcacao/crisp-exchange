@@ -379,6 +379,7 @@ impl Contract {
 
     pub fn refresh_deposits_growth(&mut self) {
         let current_timestamp = env::block_timestamp();
+        println!("current_timestamp = {current_timestamp}");
         for (_, deposit) in &mut self.deposits {
             deposit.refresh_growth(current_timestamp);
         }
