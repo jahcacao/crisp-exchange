@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::env;
+use near_sdk::json_types::ValidAccountId;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json;
 use near_sdk::test_utils::accounts;
@@ -1232,24 +1233,249 @@ fn get_account_deposits() {
     println!("deposits = {:#?}", deposits);
 }
 
+#[should_panic(expected = "Reserve not found")]
 #[test]
-fn supply_collateral_and_borrow_simple() {
+fn supply_collateral_and_borrow_simple_panic() {
     let (mut context, mut contract) = setup_contract();
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(50),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(27505),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
+    contract.supply_collateral_and_borrow_simple(0, 0);
+}
+
+#[should_panic(
+    expected = "You want to borrow 26004 of charlie but only 10 is available in reserve"
+)]
+#[test]
+fn supply_collateral_and_borrow_simple_not_enough_reserves() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(50),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(27515),
+    );
+    testing_env!(context.predecessor_account_id(accounts(0)).build());
+    contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
+    contract.create_deposit(accounts(2).into(), U128::from(10));
+    contract.supply_collateral_and_borrow_simple(0, 0);
+}
+
+#[test]
+fn supply_collateral_and_borrow_simple_should_work() {
+    let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(50),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(127515),
+    );
+    testing_env!(context
+        .predecessor_account_id(accounts(0))
+        .attached_deposit(1)
+        .build());
+    contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
+    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    let balance_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
+    let borrowed = contract.supply_collateral_and_borrow_simple(0, 0);
+    let balance_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
+    assert_eq!(balance_before.0 + borrowed.0, balance_after.0);
+    let borrow = contract.borrows.get(&0).unwrap();
+    let pool = &contract.pools[0];
+    let position = pool.positions.get(&0).unwrap();
+    assert_eq!(borrow.owner_id, accounts(0).to_string());
+    assert_eq!(borrow.asset, accounts(2).to_string());
+    assert_eq!(borrow.borrowed, borrowed.0);
+    assert_eq!(borrow.collateral, position.total_locked as u128);
+    assert_eq!(borrow.position_id, 0);
+    assert_eq!(borrow.pool_id, 0);
+    assert_eq!(borrow.health_factor, 1.25);
+    assert_eq!(borrow.last_update_timestamp, 0);
+    assert_eq!(borrow.apr, 1000);
+    assert_eq!(borrow.leverage, None);
+    assert_eq!(borrow.fees, 0);
+    let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
+    assert_eq!(token.owner_id, context.context.current_account_id);
 }
 
 #[test]
 fn supply_collateral_and_borrow_leveraged() {
     let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(1),
+        U128(100050),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(127515),
+    );
+    testing_env!(context
+        .predecessor_account_id(accounts(0))
+        .attached_deposit(1)
+        .build());
+    contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
+    let pool = &contract.pools[0];
+    let position = pool.positions.get(&0).unwrap();
+    let total_locked = position.total_locked as u128;
+    contract.create_deposit(accounts(1).into(), U128::from(100000));
+    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    let balance_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
+    let leverage = 2;
+    contract.supply_collateral_and_borrow_leveraged(0, 0, leverage);
+    let balance_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
+    assert_eq!(balance_before.0, balance_after.0);
+    let borrow = contract.borrows.get(&0).unwrap();
+    assert_eq!(borrow.owner_id, accounts(0).to_string());
+    assert_eq!(borrow.asset, accounts(2).to_string());
+    assert_eq!(borrow.borrowed, (leverage - 1) * total_locked);
+    assert_eq!(borrow.collateral, leverage * total_locked);
+    assert_eq!(borrow.position_id, 0);
+    assert_eq!(borrow.pool_id, 0);
+    assert_eq!(
+        borrow.health_factor,
+        leverage as f64 / (leverage as f64 - 1.0)
+    );
+    assert_eq!(borrow.last_update_timestamp, 0);
+    assert_eq!(borrow.apr, 1000);
+    assert_eq!(borrow.leverage, Some(leverage));
+    assert_eq!(borrow.fees, 0);
+    let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
+    assert_eq!(token.owner_id, context.context.current_account_id);
 }
 
 #[test]
 fn return_collateral_and_repay() {
+    let alice = ValidAccountId::try_from("john.near").unwrap();
     let (mut context, mut contract) = setup_contract();
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(1),
+        U128(50),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(2),
+        U128(127515),
+    );
+    testing_env!(context
+        .predecessor_account_id(alice.clone())
+        .attached_deposit(1)
+        .build());
+    contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
+    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    let borrowed = contract.supply_collateral_and_borrow_simple(0, 0);
+    println!("borrowed = {} of {}", borrowed.0, accounts(2));
+    testing_env!(context.predecessor_account_id(alice.clone()).build());
+    println!("thieteen");
+    let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
+    println!(
+        "token.owner_id = {}, context.context.current_account_id = {}",
+        token.owner_id, context.context.current_account_id
+    );
+    let balance1_before = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
+    let balance2_before = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());
+    contract.return_collateral_and_repay(0);
+    testing_env!(context.predecessor_account_id(alice).build());
+    let balance1_after = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
+    let balance2_after = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());
+    assert_eq!(balance1_before, balance1_after);
+    assert_eq!(balance2_before.0 - borrowed.0, balance2_after.0);
 }
 
 #[test]
 fn get_liquidation_list() {
     let (mut context, mut contract) = setup_contract();
+    let list = contract.get_liquidation_list();
+    assert!(list.is_empty());
 }
 
 #[test]

@@ -115,6 +115,7 @@ impl Contract {
         memo: Option<String>,
     ) -> Token {
         let token = self.tokens_by_id.get(token_id).expect("No token");
+        println!("sender_id = {sender_id} owner_id = {}", token.owner_id);
         if sender_id != &token.owner_id {
             if !token.approved_account_ids.contains_key(sender_id) {
                 panic!("Unauthorized");

@@ -47,7 +47,7 @@ impl Borrow {
     }
 
     pub fn assert_health_factor_is_above_1(&self) {
-        assert!(self.health_factor >= 1.0);
+        assert!(self.health_factor >= 1.0, "Health factor is under 1");
     }
 
     pub fn assert_health_factor_is_under_1(&self) {

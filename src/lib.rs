@@ -4,7 +4,7 @@ use balance::reserve::Reserve;
 use balance::BalancesMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
-use near_sdk::{env, near_bindgen};
+use near_sdk::{env, ext_contract, near_bindgen};
 use near_sdk::{AccountId, PanicOnDefault};
 use nft::metadata::{NFTContractMetadata, Token, TokenId, TokenMetadata};
 use pool::Pool;
@@ -65,6 +65,17 @@ pub struct Contract {
     pub reserves: UnorderedMap<AccountId, Reserve>,
     pub borrows: UnorderedMap<BorrowId, Borrow>,
     pub borrows_number: BorrowId,
+}
+
+#[ext_contract(ext_self)]
+pub trait SelfCallbacks {
+    fn nft_transfer(
+        &mut self,
+        receiver_id: AccountId,
+        token_id: TokenId,
+        approval_id: Option<u64>,
+        memo: Option<String>,
+    );
 }
 
 #[near_bindgen]
@@ -415,19 +426,33 @@ impl Contract {
         result
     }
 
-    pub fn supply_collateral_and_borrow_simple(&mut self, pool_id: usize, position_id: u128) {
+    pub fn supply_collateral_and_borrow_simple(
+        &mut self,
+        pool_id: usize,
+        position_id: u128,
+    ) -> U128 {
         let account_id = env::predecessor_account_id();
         let pool = &self.pools[pool_id];
-        let position = pool.positions.get(&position_id).expect("Not found").clone();
+        let position = pool
+            .positions
+            .get(&position_id)
+            .expect("Position not found")
+            .clone();
         let token = pool.token1.clone();
         let collateral = position.total_locked;
         let borrowed = (BORROW_RATIO * collateral).round() as u128; // health factor 1.25
         self.increase_balance(&account_id, &token, borrowed);
-        let mut reserve = self.reserves.get(&token).unwrap();
+        let mut reserve = self.reserves.get(&token).expect("Reserve not found");
         let pool = &self.pools[pool_id];
         let token = &pool.token1;
         reserve.borrowed += borrowed;
-        assert!(reserve.deposited >= reserve.borrowed);
+        assert!(
+            reserve.deposited >= reserve.borrowed,
+            "You want to borrow {} of {} but only {} is available in reserve",
+            reserve.borrowed,
+            token,
+            reserve.deposited
+        );
         self.reserves.insert(&token, &reserve);
         let borrow = Borrow {
             owner_id: account_id,
@@ -450,6 +475,7 @@ impl Contract {
             None,
             None,
         );
+        return borrowed.into();
     }
 
     pub fn supply_collateral_and_borrow_leveraged(
@@ -460,7 +486,7 @@ impl Contract {
     ) {
         assert!(leverage > 1);
         let account_id = env::predecessor_account_id();
-        let pool = &self.pools[pool_id];
+        let pool = &mut self.pools[pool_id];
         let token0 = pool.token0.clone();
         let token1 = pool.token1.clone();
         let position = pool.positions.get(&position_id).expect("Not found").clone();
@@ -477,18 +503,24 @@ impl Contract {
         assert!(reserve.deposited >= reserve.borrowed);
         self.reserves.insert(&token1, &reserve);
 
-        self.add_liquidity(
-            pool_id,
-            position_id,
+        let mut position = pool
+            .positions
+            .get(&position_id)
+            .expect("Position not found")
+            .clone();
+        let total_locked = position.total_locked as u128;
+        position.add_liquidity(
             Some(U128::from(position.token0_locked as u128 * (leverage - 1))),
             None,
+            pool.sqrt_price,
         );
+        pool.positions.insert(position_id, position);
 
         let borrow = Borrow {
             owner_id: account_id,
             asset: token1,
-            borrowed: position.total_locked as u128 * (leverage - 1),
-            collateral: position.total_locked as u128 * leverage,
+            borrowed: total_locked * (leverage - 1),
+            collateral: total_locked * leverage,
             position_id,
             pool_id,
             health_factor: leverage as f64 / (leverage as f64 - 1.0),
@@ -532,7 +564,16 @@ impl Contract {
             reserve.borrowed -= borrow.borrowed;
             self.reserves.insert(&borrow.asset, &reserve);
         }
-        self.nft_transfer(account_id, borrow.position_id.to_string(), None, None);
+        println!("receiver = {account_id}");
+        ext_self::nft_transfer(
+            account_id,
+            borrow.position_id.to_string(),
+            None,
+            None,
+            &env::current_account_id(),
+            0,
+            100000000000000,
+        );
     }
 
     pub fn get_liquidation_list(&self) -> Vec<BorrowId> {
