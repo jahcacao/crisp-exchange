@@ -1347,7 +1347,6 @@ fn supply_collateral_and_borrow_simple_should_work() {
     assert_eq!(borrow.collateral, position.total_locked as u128);
     assert_eq!(borrow.position_id, 0);
     assert_eq!(borrow.pool_id, 0);
-    assert_eq!(borrow.health_factor, 1.25);
     assert_eq!(borrow.last_update_timestamp, 0);
     assert_eq!(borrow.apr, 1000);
     assert_eq!(borrow.leverage, None);
@@ -1406,10 +1405,6 @@ fn supply_collateral_and_borrow_leveraged() {
     assert_eq!(borrow.collateral, leverage * total_locked);
     assert_eq!(borrow.position_id, 0);
     assert_eq!(borrow.pool_id, 0);
-    assert_eq!(
-        borrow.health_factor,
-        leverage as f64 / (leverage as f64 - 1.0)
-    );
     assert_eq!(borrow.last_update_timestamp, 0);
     assert_eq!(borrow.apr, 1000);
     assert_eq!(borrow.leverage, Some(leverage));
@@ -1474,8 +1469,51 @@ fn return_collateral_and_repay() {
 #[test]
 fn get_liquidation_list() {
     let (mut context, mut contract) = setup_contract();
+    let alice = ValidAccountId::try_from("john.near").unwrap();
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(1),
+        U128(99999999999999999),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(2),
+        U128(99999999999999999),
+    );
+    testing_env!(context
+        .predecessor_account_id(alice.clone())
+        .attached_deposit(1)
+        .build());
+    let pool = &contract.pools[0];
+    assert_eq!(pool.positions.len(), 0);
+    contract.open_position(0, Some(U128(1)), None, 99.0, 101.0);
+    contract.open_position(0, None, Some(U128(100)), 50.0, 101.0);
+    contract.create_deposit(accounts(2).into(), U128::from(1000000000000));
+    contract.supply_collateral_and_borrow_simple(0, 0);
+    let h = contract.get_borrow_health_factor(0);
+    assert_eq!((h * 100.0).round(), 125.0);
     let list = contract.get_liquidation_list();
     assert!(list.is_empty());
+    for _ in 0..2 {
+        contract.swap(0, accounts(1).to_string(), U128(1), accounts(2).to_string());
+    }
+    let list = contract.get_liquidation_list();
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0], 0);
 }
 
 #[test]

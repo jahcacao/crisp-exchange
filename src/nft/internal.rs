@@ -138,12 +138,14 @@ impl Contract {
         );
         self.internal_remove_token_from_owner(&token.owner_id, token_id);
         self.internal_add_token_to_owner(receiver_id, token_id);
-        let id = token_id.parse::<u128>().unwrap();
-        for pool in &mut self.pools {
-            if let Some(position) = pool.positions.get(&id) {
-                let mut position = position.clone();
-                position.owner_id = receiver_id.to_string();
-                pool.positions.insert(id, position);
+        if receiver_id.to_string() != env::current_account_id() {
+            let id = token_id.parse::<u128>().unwrap();
+            for pool in &mut self.pools {
+                if let Some(position) = pool.positions.get(&id) {
+                    let mut position = position.clone();
+                    position.owner_id = receiver_id.to_string();
+                    pool.positions.insert(id, position);
+                }
             }
         }
         let new_token = Token {

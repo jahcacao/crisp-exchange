@@ -461,7 +461,6 @@ impl Contract {
             collateral: collateral as u128,
             position_id,
             pool_id,
-            health_factor: 1.0 / BORROW_RATIO,
             last_update_timestamp: env::block_timestamp(),
             apr: APR_BORROW,
             leverage: None,
@@ -523,7 +522,6 @@ impl Contract {
             collateral: total_locked * leverage,
             position_id,
             pool_id,
-            health_factor: leverage as f64 / (leverage as f64 - 1.0),
             last_update_timestamp: env::block_timestamp(),
             apr: APR_BORROW,
             leverage: Some(leverage),
@@ -542,7 +540,10 @@ impl Contract {
     pub fn return_collateral_and_repay(&mut self, borrow_id: u128) {
         let account_id = env::predecessor_account_id();
         let borrow = self.borrows.remove(&borrow_id).unwrap();
-        borrow.assert_health_factor_is_above_1();
+        let pool = &self.pools[borrow.pool_id];
+        let position = pool.positions.get(&borrow.position_id).unwrap();
+        let health_factor = position.total_locked / borrow.borrowed as f64;
+        assert!(health_factor >= 1.0);
         assert_eq!(account_id, borrow.owner_id);
         if let Some(leverage) = borrow.leverage {
             let mut reserve = self.reserves.get(&borrow.asset).unwrap();
@@ -578,19 +579,32 @@ impl Contract {
 
     pub fn get_liquidation_list(&self) -> Vec<BorrowId> {
         let mut result = Vec::new();
-        for (id, borrow) in self.borrows.iter() {
-            if borrow.health_factor < 1.0 {
+        for (id, _) in self.borrows.iter() {
+            if self.get_borrow_health_factor(id) < 1.0 {
                 result.push(id);
             }
         }
         result
     }
 
+    pub fn get_borrow_health_factor(&self, borrow_id: BorrowId) -> f64 {
+        if let Some(borrow) = self.borrows.get(&borrow_id) {
+            let pool = &self.pools[borrow.pool_id];
+            let position = pool.positions.get(&borrow.position_id).unwrap();
+            return position.total_locked / borrow.borrowed as f64;
+        } else {
+            return 0.0;
+        }
+    }
+
     pub fn liquidate(&mut self, borrow_id: BorrowId) {
         let account_id = env::predecessor_account_id();
         if let Some(borrow) = self.borrows.remove(&borrow_id) {
-            borrow.assert_health_factor_is_under_1();
-            let discount = (1.0 + borrow.health_factor) / 2.0;
+            let pool = &self.pools[borrow.pool_id];
+            let position = pool.positions.get(&borrow.position_id).unwrap();
+            let health_factor = position.total_locked / borrow.borrowed as f64;
+            assert!(health_factor < 1.0);
+            let discount = (1.0 + health_factor) / 2.0;
             let amount = borrow.collateral as f64;
             let discounted_collateral_sum =
                 (amount * discount / borrow.leverage.unwrap_or(1) as f64) as u128;
