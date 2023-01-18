@@ -605,11 +605,31 @@ impl Contract {
             let health_factor = position.total_locked / borrow.borrowed as f64;
             assert!(health_factor < 1.0);
             let discount = (1.0 + health_factor) / 2.0;
-            let amount = borrow.collateral as f64;
             let discounted_collateral_sum =
-                (amount * discount / borrow.leverage.unwrap_or(1) as f64) as u128;
+                (position.total_locked * discount / borrow.leverage.unwrap_or(1) as f64) as u128;
             self.decrease_balance(&account_id, &borrow.asset, discounted_collateral_sum);
-            self.nft_transfer(account_id, borrow.position_id.to_string(), None, None);
+            if let Some(leverage) = borrow.leverage {
+                let pool = &mut self.pools[borrow.pool_id];
+                let mut position = pool.positions.get(&borrow.position_id).unwrap().clone();
+                position.remove_liquidity(
+                    Some(U128::from(
+                        (position.token0_locked * (leverage as f64 - 1.0) / leverage as f64)
+                            as u128,
+                    )),
+                    None,
+                    pool.sqrt_price,
+                );
+                pool.positions.insert(borrow.position_id, position);
+            }
+            ext_self::nft_transfer(
+                account_id,
+                borrow.position_id.to_string(),
+                None,
+                None,
+                &env::current_account_id(),
+                0,
+                100000000000000,
+            );
         } else {
             panic!("Borrow not found");
         }

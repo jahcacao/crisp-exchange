@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use near_sdk::env;
 use near_sdk::json_types::ValidAccountId;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json;
@@ -1519,4 +1518,54 @@ fn get_liquidation_list() {
 #[test]
 fn liquidate() {
     let (mut context, mut contract) = setup_contract();
+    let alice = ValidAccountId::try_from("john.near").unwrap();
+    contract.create_reserve(accounts(2).into());
+    contract.create_pool(
+        accounts(1).to_string(),
+        accounts(2).to_string(),
+        100.0,
+        0,
+        0,
+    );
+    testing_env!(context.predecessor_account_id(accounts(1)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(1),
+        U128(99999999999999999),
+    );
+    testing_env!(context.predecessor_account_id(accounts(2)).build());
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        alice.clone(),
+        accounts(2),
+        U128(99999999999999999),
+    );
+    testing_env!(context
+        .predecessor_account_id(alice.clone())
+        .attached_deposit(1)
+        .build());
+    let pool = &contract.pools[0];
+    assert_eq!(pool.positions.len(), 0);
+    contract.open_position(0, Some(U128(1)), None, 99.0, 101.0);
+    contract.open_position(0, None, Some(U128(100)), 50.0, 101.0);
+    contract.create_deposit(accounts(2).into(), U128::from(1000000000000));
+    contract.supply_collateral_and_borrow_simple(0, 0);
+    let h = contract.get_borrow_health_factor(0);
+    assert_eq!((h * 100.0).round(), 125.0);
+    let list = contract.get_liquidation_list();
+    assert!(list.is_empty());
+    for _ in 0..2 {
+        contract.swap(0, accounts(1).to_string(), U128(1), accounts(2).to_string());
+    }
+    let balance1_before = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
+    let balance2_before = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());
+    testing_env!(context.build());
+    contract.liquidate(0);
+    let balance1_after = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
+    let balance2_after = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());
+    assert_eq!(balance1_before, balance1_after);
+    assert!(balance2_before.0 > balance2_after.0);
 }
