@@ -48,6 +48,9 @@ pub const APR_DEPOSIT: u16 = 500;
 pub const APR_BORROW: u16 = 1000;
 pub const BORROW_RATIO: f64 = 0.8;
 
+type Pair = (AccountId, AccountId);
+type Route = Vec<(usize, AccountId, AccountId)>;
+
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
@@ -65,6 +68,7 @@ pub struct Contract {
     pub reserves: UnorderedMap<AccountId, Reserve>,
     pub borrows: UnorderedMap<BorrowId, Borrow>,
     pub borrows_number: BorrowId,
+    pub routes: HashMap<Pair, Option<Route>>,
 }
 
 #[ext_contract(ext_self)]
@@ -110,6 +114,7 @@ impl Contract {
             reserves: UnorderedMap::new(b"r"),
             borrows: UnorderedMap::new(b"b"),
             borrows_number: 0,
+            routes: HashMap::new(),
         }
     }
 
@@ -130,6 +135,15 @@ impl Contract {
             rewards,
         ));
         self.pools.len() - 1
+    }
+
+    #[private]
+    pub fn set_route(&mut self, token1: AccountId, token2: AccountId) {
+        
+    }
+
+    pub fn get_route(&self, token1: AccountId, token2: AccountId) -> Option<Route> {
+        self.routes.get(&(token1, token2)).unwrap().clone()
     }
 
     #[private]
@@ -228,6 +242,23 @@ impl Contract {
         pool.apply_swap_result(&swap_result);
         pool.refresh(env::block_timestamp());
         (swap_result.amount.round() as u128).into()
+    }
+
+    pub fn swap_multihope(
+        &mut self,
+        token_in: AccountId,
+        amount_in: U128,
+        token_out: AccountId,
+    ) -> U128 {
+        let mut amount = amount_in;
+        if let Some(route) = self.get_route(token_in, token_out) {
+            for hope in route {
+                amount = self.swap(hope.0, hope.1, amount, hope.2);
+            }
+            return amount;
+        } else {
+            panic!("No way to commit this multihope swap!");
+        }
     }
 
     pub fn open_position(

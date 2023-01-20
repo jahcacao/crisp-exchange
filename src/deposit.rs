@@ -1,6 +1,6 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    AccountId,
+    AccountId, serde::Serialize,
 };
 
 pub const MS_IN_YEAR: u64 = 31536000000;
@@ -8,7 +8,8 @@ pub const BASIS_POINT_BASE: u16 = 10000;
 
 pub type DepositId = u128;
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Deposit {
     pub owner_id: AccountId,
     pub asset: AccountId,
