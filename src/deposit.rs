@@ -1,6 +1,7 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    AccountId, serde::Serialize,
+    serde::Serialize,
+    AccountId,
 };
 
 pub const MS_IN_YEAR: u64 = 31536000000;

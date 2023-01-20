@@ -138,9 +138,7 @@ impl Contract {
     }
 
     #[private]
-    pub fn set_route(&mut self, token1: AccountId, token2: AccountId) {
-        
-    }
+    pub fn set_route(&mut self, _token1: AccountId, _token2: AccountId) {}
 
     pub fn get_route(&self, token1: AccountId, token2: AccountId) -> Option<Route> {
         self.routes.get(&(token1, token2)).unwrap().clone()
