@@ -49,7 +49,6 @@ pub const APR_BORROW: u16 = 1000;
 pub const BORROW_RATIO: f64 = 0.8;
 
 type Pair = (AccountId, AccountId);
-type Route = Vec<(usize, AccountId, AccountId)>;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -68,7 +67,8 @@ pub struct Contract {
     pub reserves: UnorderedMap<AccountId, Reserve>,
     pub borrows: UnorderedMap<BorrowId, Borrow>,
     pub borrows_number: BorrowId,
-    pub routes: HashMap<Pair, Option<Route>>,
+    pub routes: HashMap<Pair, Vec<i32>>,
+    pub routes_counter: i32,
 }
 
 #[ext_contract(ext_self)]
@@ -115,6 +115,7 @@ impl Contract {
             borrows: UnorderedMap::new(b"b"),
             borrows_number: 0,
             routes: HashMap::new(),
+            routes_counter: 1,
         }
     }
 
@@ -126,22 +127,67 @@ impl Contract {
         initial_price: f64,
         protocol_fee: u16,
         rewards: u16,
-    ) -> usize {
+    ) -> i32 {
         self.pools.push(Pool::new(
-            token1,
-            token2,
+            token1.clone(),
+            token2.clone(),
             initial_price,
             protocol_fee,
             rewards,
         ));
-        self.pools.len() - 1
+        assert!(!self.routes.contains_key(&(token1.clone(), token2.clone())));
+        assert!(!self.routes.contains_key(&(token2.clone(), token1.clone())));
+        let routes = self.routes.clone();
+        for (pair, route) in routes {
+            if pair.0 == token1 {
+                let mut new_route = route.clone();
+                new_route.push(self.routes_counter);
+                self.routes
+                    .insert((pair.0.clone(), token2.clone()), new_route.clone());
+                self.routes.insert(
+                    (token2.clone(), pair.0.clone()),
+                    Self::modify_vec(new_route),
+                );
+            } else if pair.0 == token2 {
+                let mut new_route = route.clone();
+                new_route.push(self.routes_counter);
+                self.routes
+                    .insert((pair.0.clone(), token1.clone()), new_route.clone());
+                self.routes.insert(
+                    (token1.clone(), pair.0.clone()),
+                    Self::modify_vec(new_route),
+                );
+            } else if pair.1 == token1 {
+                let mut new_route = route.clone();
+                new_route.push(self.routes_counter);
+                self.routes
+                    .insert((pair.0.clone(), token2.clone()), new_route.clone());
+                self.routes.insert(
+                    (token2.clone(), pair.0.clone()),
+                    Self::modify_vec(new_route),
+                );
+            } else if pair.1 == token2 {
+                let mut new_route = route.clone();
+                new_route.push(-self.routes_counter);
+                self.routes
+                    .insert((pair.0.clone(), token1.clone()), new_route.clone());
+                self.routes.insert(
+                    (token1.clone(), pair.0.clone()),
+                    Self::modify_vec(new_route),
+                );
+            }
+        }
+        self.routes
+            .insert((token1.clone(), token2.clone()), vec![self.routes_counter]);
+        self.routes
+            .insert((token2.clone(), token1.clone()), vec![-self.routes_counter]);
+        self.routes_counter += 1;
+        self.routes_counter - 1
     }
 
-    #[private]
-    pub fn set_route(&mut self, _token1: AccountId, _token2: AccountId) {}
-
-    pub fn get_route(&self, token1: AccountId, token2: AccountId) -> Option<Route> {
-        self.routes.get(&(token1, token2)).unwrap().clone()
+    fn modify_vec(mut vec: Vec<i32>) -> Vec<i32> {
+        vec.reverse();
+        vec.into_iter().map(|x| -x).collect()
     }
 
     #[private]
@@ -249,14 +295,30 @@ impl Contract {
         token_out: AccountId,
     ) -> U128 {
         let mut amount = amount_in;
-        if let Some(route) = self.get_route(token_in, token_out) {
-            for hope in route {
-                amount = self.swap(hope.0, hope.1, amount, hope.2);
+        if let Some(route) = self.routes.clone().get(&(token_in, token_out)) {
+            for pool_id in route {
+                if pool_id > &0 {
+                    let pool = &self.pools[*pool_id as usize];
+                    amount = self.swap(
+                        *pool_id as usize,
+                        pool.token0.clone(),
+                        amount,
+                        pool.token1.clone(),
+                    );
+                } else {
+                    let pool = &self.pools[-pool_id as usize];
+                    amount = self.swap(
+                        -pool_id as usize,
+                        pool.token1.clone(),
+                        amount,
+                        pool.token0.clone(),
+                    );
+                }
             }
-            return amount;
         } else {
-            panic!("No way to commit this multihope swap!");
+            panic!("Route does not exist!");
         }
+        amount
     }
 
     pub fn open_position(
