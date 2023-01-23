@@ -152,3 +152,93 @@ Add tokens to the position:
 near call $CONTRACT_ID remove_liquidity '{"pool_id": 0, "position_id": 12, "token0_liquidity": "1000"}' --accountId $USER_ID
 ```
 Returns bool (true if liquidity was actually removed from the position and false otherwise)
+
+Swap on exchange using multihope:
+```
+near call $CONTRACT_ID swap_multihope '{"token_in": "'$TOKEN1'", "amount_in": "100000", "token_out": "'$TOKEN2'"}' --accountId $USER_ID --gas 300000000000000
+```
+Returns given amount I get:
+```
+"13562"
+```
+
+Create reserve:
+```
+near call $CONTRACT_ID create_reserve '{"reserve_token": "'$TOKEN1'"}' --accountId $CONTRACT_ID
+```
+
+Create deposit:
+```
+near call $CONTRACT_ID create_deposit '{"asset": "'$TOKEN1'", "amount": "100000"}' --accountId $USER_ID
+```
+
+Close deposit:
+```
+near call $CONTRACT_ID close_deposit '{"deposit_id": "0"}' --accountId $USER_ID
+```
+
+Refresh deposits growth:
+```
+near call $CONTRACT_ID refresh_deposits_growth '{}' --accountId $CONTRACT_ID
+```
+
+Take deposit growth:
+```
+near call $CONTRACT_ID take_deposit_growth '{"deposit_id": "0", "amount": "100"}' --accountId $USER_ID
+```
+Returns amount taken
+```
+50
+```
+
+Get deposits for a certain account:
+```
+near call $CONTRACT_ID get_account_deposits '{"account_id": "'$USER_ID'"}' --accountId $USER_ID
+```
+Returns all the deposits made from USER_ID account
+
+Supply collateral and borrow without leverage:
+```
+near call $CONTRACT_ID supply_collateral_and_borrow_simple '{"pool_id": 0, "position_id": 0}' --accountId $USER_ID
+```
+Returns the amount borrowed
+```
+567
+```
+
+Supply collateral and borrow with leverage:
+```
+near call $CONTRACT_ID supply_collateral_and_borrow_leveraged '{"pool_id": 0, "position_id": 0, "leverage": 2}' --accountId $USER_ID
+```
+
+Return collateral and repay:
+```
+near call $CONTRACT_ID return_collateral_and_repay '{"borrow_id": 0}' --accountId $USER_ID
+```
+
+Get borrows which could be liquidated:
+```
+near call $CONTRACT_ID get_liquidation_list '{}' --accountId $USER_ID
+```
+Return vector of ids:
+```
+[1, 3, 5, 6]
+```
+
+Get borrow`s health factor:
+```
+near view $CONTRACT_ID get_borrow_health_factor '{"borrow_id": 0}'
+```
+Returns float
+```
+1.25
+```
+
+Liquidate a borrow:
+```
+near call $CONTRACT_ID liquidate '{"borrow_id": 0}' --accountId $USER_ID
+```
+
+
+
+
