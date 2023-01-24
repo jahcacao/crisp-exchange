@@ -1381,6 +1381,7 @@ fn supply_collateral_and_borrow_simple_should_work() {
     assert_eq!(borrow.apr, 1000);
     assert_eq!(borrow.leverage, None);
     assert_eq!(borrow.fees, 0);
+    println!("liquidation price = {}", borrow.liquidation_price);
     let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
     assert_eq!(token.owner_id, context.context.current_account_id);
 }

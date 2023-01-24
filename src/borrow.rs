@@ -16,6 +16,7 @@ pub struct Borrow {
     pub apr: u16,
     pub leverage: Option<u128>,
     pub fees: u128,
+    pub liquidation_price: f64,
 }
 
 impl Borrow {

@@ -533,6 +533,7 @@ impl Contract {
         let token = pool.token1.clone();
         let collateral = position.total_locked;
         let borrowed = (BORROW_RATIO * collateral).round() as u128; // health factor 1.25
+        let liquidation_price = position.get_liquidation_price(borrowed as f64);
         self.increase_balance(&account_id, &token, borrowed);
         let mut reserve = self.reserves.get(&token).expect("Reserve not found");
         let pool = &self.pools[pool_id];
@@ -557,6 +558,7 @@ impl Contract {
             apr: APR_BORROW,
             leverage: None,
             fees: 0,
+            liquidation_price,
         };
         self.borrows.insert(&self.borrows_number, &borrow);
         self.borrows_number += 1;
@@ -605,6 +607,8 @@ impl Contract {
             None,
             pool.sqrt_price,
         );
+        let liquidation_price =
+            position.get_liquidation_price((total_locked * (leverage - 1)) as f64);
         pool.positions.insert(position_id, position);
 
         let borrow = Borrow {
@@ -618,6 +622,7 @@ impl Contract {
             apr: APR_BORROW,
             leverage: Some(leverage),
             fees: 0,
+            liquidation_price,
         };
         self.borrows.insert(&self.borrows_number, &borrow);
         self.borrows_number += 1;
