@@ -26,6 +26,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, CryptoHash, Promise, PromiseOrValue};
 use std::collections::HashMap;
 
+mod action;
 mod borrow;
 mod deposit;
 mod nft;
@@ -238,7 +239,7 @@ impl Contract {
     }
 
     pub fn withdraw(&mut self, token: AccountId, amount: U128) {
-        let account_id = env::predecessor_account_id();
+        let account_id = env::signer_account_id();
         let amount: u128 = amount.into();
         self.balance_withdraw(&account_id, &token, amount);
     }
@@ -271,7 +272,7 @@ impl Contract {
         token_out: AccountId,
     ) -> U128 {
         self.assert_pool_exists(pool_id);
-        let account_id = env::predecessor_account_id();
+        let account_id = env::signer_account_id();
         let amount_in: u128 = amount_in.into();
         self.decrease_balance(&account_id, &token_in, amount_in);
         let pool = &mut self.pools[pool_id];

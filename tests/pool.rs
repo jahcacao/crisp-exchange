@@ -465,6 +465,7 @@ fn swap_in_token0() {
         U128(11005078),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     let balance1_before = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     let balance2_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
@@ -510,6 +511,7 @@ fn swap_in_token1() {
         U128(11105078),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     let balance1_before = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     let balance2_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
@@ -539,6 +541,7 @@ fn fee_test() {
         100,
         100,
     );
+    testing_env!(context.signer_account_id(accounts(1)).build());
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
@@ -547,6 +550,7 @@ fn fee_test() {
         accounts(1),
         U128(100000),
     );
+    testing_env!(context.signer_account_id(accounts(1)).build());
     testing_env!(context.predecessor_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
@@ -556,8 +560,10 @@ fn fee_test() {
         U128(11005078),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -566,6 +572,7 @@ fn fee_test() {
         U128(0),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -579,6 +586,7 @@ fn fee_test() {
     assert!(balance2_before == U128(100000));
     let amount1 = 100000;
     testing_env!(context.predecessor_account_id(accounts(3)).build());
+    testing_env!(context.signer_account_id(accounts(3)).build());
     let result: u128 = contract
         .swap(
             0,
@@ -634,9 +642,11 @@ fn collected_fee() {
         U128(11000000),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(50000)), None, 81.0, 121.0);
     contract.open_position(0, Some(U128(50000)), None, 91.0, 111.0);
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -645,6 +655,7 @@ fn collected_fee() {
         U128(100000),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -658,6 +669,7 @@ fn collected_fee() {
     assert!(balance2_before == U128(100000));
     let amount1 = 100000;
     testing_env!(context.predecessor_account_id(accounts(3)).build());
+    testing_env!(context.signer_account_id(accounts(3)).build());
     let _pool = &contract.pools[0];
     let _result: u128 = contract
         .swap(
@@ -761,6 +773,7 @@ fn value_locked_swap() {
         0,
     );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     let initial_balance1 = 200000;
     let initial_balance2 = 11005078;
     deposit_tokens(
@@ -771,6 +784,7 @@ fn value_locked_swap() {
         U128(initial_balance1),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -779,6 +793,7 @@ fn value_locked_swap() {
         U128(initial_balance2),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     contract.swap(
         0,
@@ -804,6 +819,7 @@ fn value_locked_more_open() {
         100,
     );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     let initial_balance1 = 100000;
     let initial_balance2 = 11005100;
     deposit_tokens(
@@ -814,6 +830,7 @@ fn value_locked_more_open() {
         U128(initial_balance1),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -822,6 +839,7 @@ fn value_locked_more_open() {
         U128(initial_balance2),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     for _ in 0..100 {
         contract.open_position(0, Some(U128(1000)), None, 81.0, 121.0);
         let pool = &contract.pools[0];
@@ -844,6 +862,7 @@ fn value_locked_more_swaps() {
         0,
     );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     let initial_balance1 = 101000;
     let initial_balance2 = 10763056;
     deposit_tokens(
@@ -854,6 +873,7 @@ fn value_locked_more_swaps() {
         U128(initial_balance1),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -862,6 +882,7 @@ fn value_locked_more_swaps() {
         U128(initial_balance2),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 9990.0, 11000.0);
     for _ in 0..10 {
         contract.swap(
@@ -1015,6 +1036,7 @@ fn open_many_positions_with_swap1() {
     for i in 3..13 {
         let account = format!("\"{i}.testnet\"");
         testing_env!(context.predecessor_account_id(accounts(1)).build());
+        testing_env!(context.signer_account_id(accounts(1)).build());
         deposit_tokens(
             &mut context,
             &mut contract,
@@ -1023,6 +1045,7 @@ fn open_many_positions_with_swap1() {
             U128(2000000),
         );
         testing_env!(context.predecessor_account_id(accounts(2)).build());
+        testing_env!(context.signer_account_id(accounts(2)).build());
         deposit_tokens(
             &mut context,
             &mut contract,
@@ -1032,6 +1055,9 @@ fn open_many_positions_with_swap1() {
         );
         testing_env!(context
             .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        testing_env!(context
+            .signer_account_id(serde_json::from_str(account.as_str()).unwrap())
             .build());
         for _ in 0..10 {
             contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
@@ -1062,6 +1088,7 @@ fn open_many_positions_with_swap2() {
     for i in 3..153 {
         let account = format!("\"{i}.testnet\"");
         testing_env!(context.predecessor_account_id(accounts(1)).build());
+        testing_env!(context.signer_account_id(accounts(1)).build());
         deposit_tokens(
             &mut context,
             &mut contract,
@@ -1070,6 +1097,7 @@ fn open_many_positions_with_swap2() {
             U128(2000000),
         );
         testing_env!(context.predecessor_account_id(accounts(2)).build());
+        testing_env!(context.signer_account_id(accounts(2)).build());
         deposit_tokens(
             &mut context,
             &mut contract,
@@ -1079,6 +1107,9 @@ fn open_many_positions_with_swap2() {
         );
         testing_env!(context
             .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        testing_env!(context
+            .signer_account_id(serde_json::from_str(account.as_str()).unwrap())
             .build());
         contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
         let amount = contract.swap(
@@ -1478,6 +1509,7 @@ fn get_liquidation_list() {
         0,
     );
     testing_env!(context.predecessor_account_id(accounts(1)).build());
+    testing_env!(context.signer_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1486,6 +1518,7 @@ fn get_liquidation_list() {
         U128(99999999999999999),
     );
     testing_env!(context.predecessor_account_id(accounts(2)).build());
+    testing_env!(context.signer_account_id(accounts(2)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1497,6 +1530,7 @@ fn get_liquidation_list() {
         .predecessor_account_id(alice.clone())
         .attached_deposit(1)
         .build());
+    testing_env!(context.signer_account_id(alice.clone()).build());
     let pool = &contract.pools[0];
     assert_eq!(pool.positions.len(), 0);
     contract.open_position(0, Some(U128(1)), None, 99.0, 101.0);
@@ -1527,6 +1561,7 @@ fn liquidate() {
         0,
         0,
     );
+    testing_env!(context.signer_account_id(alice.clone()).build());
     testing_env!(context.predecessor_account_id(accounts(1)).build());
     deposit_tokens(
         &mut context,

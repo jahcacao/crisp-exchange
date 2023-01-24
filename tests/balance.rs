@@ -45,6 +45,7 @@ fn test_balance_after_two_deposits() {
 fn test_balance_after_withdraw() {
     let (mut context, mut contract) = setup_contract();
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -68,6 +69,7 @@ fn test_balance_after_withdraw() {
 fn test_balance_withdraw_not_enough_token() {
     let (mut context, mut contract) = setup_contract();
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     deposit_tokens(
         &mut context,
         &mut contract,
