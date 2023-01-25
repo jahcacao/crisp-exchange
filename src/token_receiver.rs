@@ -17,27 +17,51 @@ enum TokenReceiverMessage {
 }
 
 impl Contract {
+    // may be needed to change predecessor_id -> signer_id in some method
     fn internal_execute(&mut self, token_in: AccountId, actions: &[Action]) {
         for action in actions {
             match action {
-                Action::Swap(swap_action) => {
-                    assert_eq!(token_in, swap_action.token_in);
+                Action::Swap(action) => {
+                    assert_eq!(token_in, action.token_in);
                     self.swap(
-                        swap_action.pool_id,
-                        &swap_action.token_in,
-                        swap_action.amount_in,
-                        &swap_action.token_out,
+                        action.pool_id,
+                        &action.token_in,
+                        action.amount_in,
+                        &action.token_out,
                     );
                 }
-                Action::Withdraw(withdraw_action) => {
-                    self.withdraw(&withdraw_action.token, withdraw_action.amount);
+                Action::Withdraw(action) => {
+                    self.withdraw(&action.token, action.amount);
                 }
-                Action::MultihopeSwap(_) => todo!(),
-                Action::OpenPosition(_) => todo!(),
-                Action::AddLiquidity(_) => todo!(),
-                Action::CreateDeposit(_) => todo!(),
-                Action::ReturnCollateralAndRepay(_) => todo!(),
-                Action::Liquidate(_) => todo!(),
+                Action::MultihopeSwap(action) => {
+                    self.swap_multihope(&action.token_in, action.amount_in, &action.token_out);
+                }
+                Action::OpenPosition(action) => {
+                    self.open_position(
+                        action.pool_id,
+                        action.token0_liquidity,
+                        action.token1_liquidity,
+                        action.lower_bound_price,
+                        action.upper_bound_price,
+                    );
+                }
+                Action::AddLiquidity(action) => {
+                    self.add_liquidity(
+                        action.pool_id,
+                        action.position_id,
+                        action.token0_liquidity,
+                        action.token1_liquidity,
+                    );
+                }
+                Action::CreateDeposit(action) => {
+                    self.create_deposit(&action.asset, action.amount);
+                }
+                Action::ReturnCollateralAndRepay(action) => {
+                    self.return_collateral_and_repay(action.borrow_id);
+                }
+                Action::Liquidate(action) => {
+                    self.liquidate(action.borrow_id);
+                }
             }
         }
     }
