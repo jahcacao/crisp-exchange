@@ -87,7 +87,7 @@ fn test_balance_withdraw_not_enough_token() {
 }
 
 #[test]
-#[should_panic(expected = "Token has not been deposited")]
+#[should_panic]
 fn test_balance_withdraw_without_deposit() {
     let (mut context, mut contract) = setup_contract();
     testing_env!(context.predecessor_account_id(accounts(0)).build());

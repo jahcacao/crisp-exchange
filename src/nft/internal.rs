@@ -42,18 +42,11 @@ pub(crate) fn hash_account_id(account_id: &AccountId) -> CryptoHash {
 }
 
 pub(crate) fn assert_one_yocto() {
-    assert_eq!(
-        env::attached_deposit(),
-        1,
-        "Requires attached deposit of exactly 1 yoctoNEAR",
-    )
+    assert_eq!(env::attached_deposit(), 1, "{}", NFT2)
 }
 
 pub(crate) fn assert_at_least_one_yocto() {
-    assert!(
-        env::attached_deposit() >= 1,
-        "Requires attached deposit of at least 1 yoctoNEAR",
-    )
+    assert!(env::attached_deposit() >= 1, "{}", NFT2)
 }
 
 pub(crate) fn refund_deposit(storage_used: u64) {
@@ -94,10 +87,7 @@ impl Contract {
         account_id: &AccountId,
         token_id: &TokenId,
     ) {
-        let mut tokens_set = self
-            .tokens_per_owner
-            .get(account_id)
-            .expect("Token should be owned by the sender");
+        let mut tokens_set = self.tokens_per_owner.get(account_id).expect(NFT3);
         tokens_set.remove(token_id);
         if tokens_set.is_empty() {
             self.tokens_per_owner.remove(account_id);
@@ -114,16 +104,13 @@ impl Contract {
         approval_id: Option<u64>,
         memo: Option<String>,
     ) -> Token {
-        let token = self.tokens_by_id.get(token_id).expect("No token");
+        let token = self.tokens_by_id.get(token_id).expect(NFT0);
         if sender_id != &token.owner_id {
             if !token.approved_account_ids.contains_key(sender_id) {
-                panic!("Unauthorized");
+                panic!("{}", NFT4);
             }
             if let Some(enforced_approval_id) = approval_id {
-                let actual_approval_id = token
-                    .approved_account_ids
-                    .get(sender_id)
-                    .expect("Sender is not approved account");
+                let actual_approval_id = token.approved_account_ids.get(sender_id).expect(NFT5);
                 assert_eq!(
                     actual_approval_id, &enforced_approval_id,
                     "The actual approval_id {} is different from the given approval_id {}",
@@ -131,10 +118,7 @@ impl Contract {
                 );
             }
         }
-        assert_ne!(
-            &token.owner_id, receiver_id,
-            "The token owner and the receiver should be different"
-        );
+        assert_ne!(&token.owner_id, receiver_id, "{}", NFT6);
         self.internal_remove_token_from_owner(&token.owner_id, token_id);
         self.internal_add_token_to_owner(receiver_id, token_id);
         if receiver_id.to_string() != env::current_account_id() {

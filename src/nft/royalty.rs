@@ -22,17 +22,14 @@ pub trait NonFungibleTokenCore {
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
     fn nft_payout(&self, token_id: TokenId, balance: U128, max_len_payout: u32) -> Payout {
-        let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let token = self.tokens_by_id.get(&token_id).expect(NFT0);
         let owner_id = token.owner_id;
         let mut total_perpetual = 0;
         let balance_u128 = u128::from(balance);
         let mut payout_object = Payout {
             payout: HashMap::new(),
         };
-        assert!(
-            token.royalty.len() as u32 <= max_len_payout,
-            "Market cannot payout to that many receivers"
-        );
+        assert!(token.royalty.len() as u32 <= max_len_payout, "{}", NFT8);
         for (k, v) in token.royalty.iter() {
             let key = k.clone();
             if key != owner_id {
@@ -75,7 +72,8 @@ impl NonFungibleTokenCore for Contract {
         };
         assert!(
             previous_token.royalty.len() as u32 <= max_len_payout,
-            "Market cannot payout to that many receivers"
+            "{}",
+            NFT8
         );
         for (k, v) in previous_token.royalty.iter() {
             let key = k.clone();

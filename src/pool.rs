@@ -7,7 +7,7 @@ use near_sdk::{
 };
 
 use crate::{
-    errors::NOT_ENOUGH_LIQUIDITY_IN_POOL,
+    balance::{PST0, SWP1},
     position::{sqrt_price_to_tick, tick_to_sqrt_price, Position},
     BASIS_POINT_TO_PERCENT,
 };
@@ -80,11 +80,11 @@ impl Pool {
         if direction == SwapDirection::Return {
             if token == &self.token0 {
                 if amount > self.token0_locked {
-                    panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
+                    panic!("{}", SWP1);
                 }
             } else {
                 if amount > self.token1_locked {
-                    panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
+                    panic!("{}", SWP1);
                 }
             }
         }
@@ -96,7 +96,7 @@ impl Pool {
         while remaining > 0.0 {
             let liquidity = self.calculate_liquidity_within_tick(price);
             if liquidity == 0.0 && !self.check_available_liquidity(price, token, direction) {
-                panic!("{}", NOT_ENOUGH_LIQUIDITY_IN_POOL);
+                panic!("{}", SWP1);
             }
             let temp = match direction {
                 SwapDirection::Expense => self.get_amount_in_within_tick(
@@ -314,7 +314,7 @@ impl Pool {
     }
 
     pub fn close_position(&mut self, id: u128) {
-        let position = self.positions.get(&id).unwrap();
+        let position = self.positions.get(&id).expect(PST0);
         if position.is_active(self.sqrt_price) {
             self.liquidity -= position.liquidity;
             self.token0_locked -= position.token0_locked.round() as u128;

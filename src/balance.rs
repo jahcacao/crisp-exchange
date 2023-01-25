@@ -3,7 +3,6 @@ use near_sdk::json_types::U128;
 use near_sdk::{collections::UnorderedMap, AccountId};
 use std::collections::HashMap;
 
-use crate::errors::{TOKEN_HAS_NOT_BEEN_DEPOSITED, YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL};
 use crate::pool::CollectedFee;
 
 pub const GAS_FOR_FT_TRANSFER: u64 = 20_000_000_000_000;
@@ -28,16 +27,13 @@ impl Contract {
     }
 
     pub fn balance_withdraw(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        let mut balance = self
-            .balances_map
-            .get(account_id)
-            .expect("Token has not been deposited");
-        let current_amount = balance.get(token).expect("Token has not been deposited");
-        let message = format!(
-            "You want to withdraw {} of {} but only have {}",
-            amount, token, current_amount
+        let mut balance = self.balances_map.get(account_id).expect(BAL0);
+        let current_amount = balance.get(token).expect(BAL0);
+        assert!(
+            amount <= current_amount,
+            "{}",
+            withdraw_error(token, amount, current_amount)
         );
-        assert!(amount <= current_amount, "{}", message);
         balance.insert(token, &(current_amount - amount));
         self.balances_map.insert(account_id, &balance);
         ext_fungible_token::ft_transfer(
@@ -51,17 +47,16 @@ impl Contract {
     }
 
     pub fn decrease_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        let message = format!(
-            "You want to decrease your balance on {} of {} but only have {}",
-            amount, token, 0
+        let mut balance = self
+            .balances_map
+            .get(account_id)
+            .expect(&withdraw_error(token, amount, 0));
+        let current_amount = balance.get(token).expect(&withdraw_error(token, amount, 0));
+        assert!(
+            amount <= current_amount,
+            "{}",
+            &withdraw_error(token, amount, current_amount)
         );
-        let mut balance = self.balances_map.get(account_id).expect(message.as_str());
-        let current_amount = balance.get(token).expect(message.as_str());
-        let message = format!(
-            "You want to decrease your balance on {} of {} but only have {}",
-            amount, token, current_amount
-        );
-        assert!(amount <= current_amount, "{}", message);
         balance.insert(token, &(current_amount - amount));
         self.balances_map.insert(account_id, &balance);
     }

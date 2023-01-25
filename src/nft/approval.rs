@@ -38,12 +38,8 @@ impl NonFungibleTokenCore for Contract {
     #[payable]
     fn nft_approve(&mut self, token_id: TokenId, account_id: AccountId, msg: Option<String>) {
         assert_at_least_one_yocto();
-        let mut token = self.tokens_by_id.get(&token_id).expect("No token");
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &token.owner_id,
-            "Predecessor must be the token owner."
-        );
+        let mut token = self.tokens_by_id.get(&token_id).expect(NFT0);
+        assert_eq!(&env::predecessor_account_id(), &token.owner_id, "{}", NFT1);
         let approval_id: u64 = token.next_approval_id;
         let is_new_approval = token
             .approved_account_ids
@@ -76,7 +72,7 @@ impl NonFungibleTokenCore for Contract {
         approved_account_id: AccountId,
         approval_id: Option<u64>,
     ) -> bool {
-        let token = self.tokens_by_id.get(&token_id).expect("No token");
+        let token = self.tokens_by_id.get(&token_id).expect(NFT0);
         if let Some(approval) = token.approved_account_ids.get(&approved_account_id) {
             if let Some(approval_id) = approval_id {
                 approval_id == *approval
@@ -91,7 +87,7 @@ impl NonFungibleTokenCore for Contract {
     #[payable]
     fn nft_revoke(&mut self, token_id: TokenId, account_id: AccountId) {
         assert_one_yocto();
-        let mut token = self.tokens_by_id.get(&token_id).expect("No token");
+        let mut token = self.tokens_by_id.get(&token_id).expect(NFT0);
         let predecessor_account_id = env::predecessor_account_id();
         assert_eq!(&predecessor_account_id, &token.owner_id);
         if token.approved_account_ids.remove(&account_id).is_some() {
@@ -103,7 +99,7 @@ impl NonFungibleTokenCore for Contract {
     #[payable]
     fn nft_revoke_all(&mut self, token_id: TokenId) {
         assert_one_yocto();
-        let mut token = self.tokens_by_id.get(&token_id).expect("No token");
+        let mut token = self.tokens_by_id.get(&token_id).expect(NFT0);
         let predecessor_account_id = env::predecessor_account_id();
         assert_eq!(&predecessor_account_id, &token.owner_id);
         if !token.approved_account_ids.is_empty() {

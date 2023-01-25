@@ -19,7 +19,8 @@ impl Contract {
         };
         assert!(
             self.tokens_by_id.insert(&token_id, &token).is_none(),
-            "Token already exists"
+            "{}",
+            NFT7
         );
         self.tokens_by_id.insert(&token_id, &token);
         self.token_metadata_by_id.insert(&token_id, &metadata);
@@ -39,10 +40,7 @@ impl Contract {
     #[private]
     #[payable]
     pub fn nft_burn(&mut self, token_id: TokenId) {
-        assert!(
-            self.tokens_by_id.get(&token_id).is_some(),
-            "Token does not exist exists"
-        );
+        assert!(self.tokens_by_id.get(&token_id).is_some(), "{}", NFT0);
         let token = self.tokens_by_id.get(&token_id).unwrap();
         self.token_metadata_by_id.remove(&token_id);
         self.internal_remove_token_from_owner(&token.owner_id, &token_id);
