@@ -70,8 +70,13 @@ pub struct WithdrawAction {
 /// Single action. Allows to execute sequence of various actions initiated by an account.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-// #[serde(untagged)]
 pub enum Action {
     Swap(SwapAction),
     Withdraw(WithdrawAction),
+    MultihopeSwap(MultihopeSwapAction),
+    OpenPosition(OpenPositionAction),
+    AddLiquidity(AddLiquidityAction),
+    CreateDeposit(CreateDepositAction),
+    ReturnCollateralAndRepay(ReturnCollateralAndRepayAction),
+    Liquidate(LiquidateAction),
 }

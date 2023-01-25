@@ -28,57 +28,53 @@ impl Contract {
     }
 
     pub fn balance_withdraw(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.balances_map.get(account_id) {
-            if let Some(current_amount) = balance.get(token) {
-                let message = format!(
-                    "Not enough tokens. You want to withdraw {} of {} but only have {}",
-                    amount, token, current_amount
-                );
-                assert!(amount <= current_amount, "{}", message);
-                balance.insert(token, &(current_amount - amount));
-                self.balances_map.insert(account_id, &balance);
-                ext_fungible_token::ft_transfer(
-                    account_id.to_string(),
-                    U128(amount),
-                    None,
-                    &token,
-                    1,
-                    GAS_FOR_FT_TRANSFER,
-                );
-                return;
-            }
-        }
-        panic!("{}", TOKEN_HAS_NOT_BEEN_DEPOSITED);
+        let mut balance = self
+            .balances_map
+            .get(account_id)
+            .expect("Token has not been deposited");
+        let current_amount = balance.get(token).expect("Token has not been deposited");
+        let message = format!(
+            "You want to withdraw {} of {} but only have {}",
+            amount, token, current_amount
+        );
+        assert!(amount <= current_amount, "{}", message);
+        balance.insert(token, &(current_amount - amount));
+        self.balances_map.insert(account_id, &balance);
+        ext_fungible_token::ft_transfer(
+            account_id.to_string(),
+            U128(amount),
+            None,
+            &token,
+            1,
+            GAS_FOR_FT_TRANSFER,
+        );
     }
 
     pub fn decrease_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
-        if let Some(mut balance) = self.balances_map.get(account_id) {
-            if let Some(current_amount) = balance.get(token) {
-                let message = format!("Not enough tokens. You want to decrease your balance on {} of {} but only have {}", amount, token, current_amount);
-                assert!(amount <= current_amount, "{}", message);
-                balance.insert(token, &(current_amount - amount));
-                self.balances_map.insert(account_id, &balance);
-            }
-        } else {
-            let message = format!(
-                "Not enough tokens. You want to decrease your balance on {} of {} but only have {}",
-                amount, token, 0
-            );
-            panic!("{}", message);
-        }
+        let message = format!(
+            "You want to decrease your balance on {} of {} but only have {}",
+            amount, token, 0
+        );
+        let mut balance = self.balances_map.get(account_id).expect(message.as_str());
+        let current_amount = balance.get(token).expect(message.as_str());
+        let message = format!(
+            "You want to decrease your balance on {} of {} but only have {}",
+            amount, token, current_amount
+        );
+        assert!(amount <= current_amount, "{}", message);
+        balance.insert(token, &(current_amount - amount));
+        self.balances_map.insert(account_id, &balance);
     }
 
     pub fn increase_balance(&mut self, account_id: &AccountId, token: &AccountId, amount: u128) {
         if let Some(mut balance) = self.balances_map.get(account_id) {
-            if let Some(current_amount) = balance.get(token) {
-                balance.insert(token, &(current_amount + amount));
-                self.balances_map.insert(account_id, &balance);
-            } else {
-                balance.insert(token, &amount);
-                self.balances_map.insert(account_id, &balance);
-            }
+            let current_amount = balance.get(token).unwrap_or(0);
+            balance.insert(token, &(current_amount + amount));
+            self.balances_map.insert(account_id, &balance);
         } else {
-            panic!("{}", YOU_HAVE_NOT_ADDED_LIQUIDITY_TO_THIS_POOL);
+            let mut balance = UnorderedMap::new(account_id.clone().into_bytes());
+            balance.insert(token, &amount);
+            self.balances_map.insert(account_id, &balance);
         }
     }
 

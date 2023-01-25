@@ -38,19 +38,11 @@ impl Deposit {
     }
 
     pub fn calculate_growth(&self, current_timestamp: u64) -> u128 {
-        println!("amount = {}", self.amount);
-        println!("current_timestamp = {}", current_timestamp);
-        println!(
-            "self.last_update_timestamp = {}",
-            self.last_update_timestamp
-        );
-        println!("self.apr = {}", self.apr);
         let growth = (self.amount as f64)
             * Self::timestamp_difference_to_coefficient(
                 current_timestamp - self.last_update_timestamp,
                 self.apr,
             );
-        println!("growth = {growth}");
         growth.round() as u128
     }
 
@@ -65,12 +57,10 @@ impl Deposit {
 
     pub fn take_growth(&mut self, amount: u128) -> u128 {
         if amount > self.growth {
-            println!("amount = {amount} growth = {}", self.growth);
             let result = self.growth;
             self.growth = 0;
             result
         } else {
-            println!("amount = {amount} growth = {}", self.growth);
             self.growth -= amount;
             amount
         }

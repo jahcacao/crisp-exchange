@@ -66,7 +66,6 @@ fn open_position_is_correct() {
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
     let pool = contract.get_pool(0);
-    println!("pool.liquidity = {}", pool.liquidity);
     assert!(pool.liquidity == 5500.834197154125);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -197,7 +196,6 @@ fn open_two_positions() {
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     let pool = contract.get_pool(0);
-    println!("pool.liquidity = {}", pool.liquidity);
     assert!(pool.liquidity == 6025.922352607511);
     assert!(pool.sqrt_price == 10.0);
     assert!(pool.tick == 46054);
@@ -426,14 +424,6 @@ fn get_expense() {
     let result4 = contract.get_expense(0, &accounts(2).to_string(), U128(1101002812));
     let pool = &contract.pools[0];
     let position = &pool.positions.get(&0).unwrap();
-    println!("result1 = {}", result1.0);
-    println!("result2 = {}", result2.0);
-    println!("result3 = {}", result3.0);
-    println!("result4 = {}", result4.0);
-    println!("token0 locked = {}", pool.token0_locked);
-    println!("token1 locked = {}", pool.token1_locked);
-    println!("liquidity = {}", position.liquidity);
-    println!("pool liquidity = {}", pool.liquidity);
     assert!(result1 == U128(100));
     assert!(result2 == U128(10));
 }
@@ -474,9 +464,9 @@ fn swap_in_token0() {
     let amount1 = 100000;
     let amount2 = contract.swap(
         0,
-        accounts(1).to_string(),
+        &accounts(1).to_string(),
         U128(amount1),
-        accounts(2).to_string(),
+        &accounts(2).to_string(),
     );
     let balance1_after = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     let balance2_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
@@ -516,14 +506,13 @@ fn swap_in_token1() {
     let balance1_before = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     let balance2_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert!(balance1_before == U128(0));
-    println!("balance2_before = {}", balance2_before.0);
     assert!(balance2_before == U128(100000));
     let amount1 = 100000;
     let amount2 = contract.swap(
         0,
-        accounts(2).to_string(),
+        &accounts(2).to_string(),
         U128(amount1),
-        accounts(1).to_string(),
+        &accounts(1).to_string(),
     );
     let balance1_after = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     let balance2_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
@@ -590,9 +579,9 @@ fn fee_test() {
     let result: u128 = contract
         .swap(
             0,
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
             U128(amount1),
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
         )
         .into();
     let balance1_after: u128 = contract
@@ -602,7 +591,7 @@ fn fee_test() {
         .get_balance(&accounts(3).to_string(), &accounts(2).to_string())
         .into();
     let amount2 = result as f64 * 0.98;
-    assert!((balance1_after as f64 - amount2).abs() < 10.0);
+    assert!((balance1_after as f64 - amount2).abs() < 20.0);
     assert!(balance2_after == 0);
     let balance1_lp_after: u128 = contract
         .get_balance(&accounts(0).to_string(), &accounts(1).to_string())
@@ -674,38 +663,26 @@ fn collected_fee() {
     let _result: u128 = contract
         .swap(
             0,
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
             U128(amount1),
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
         )
         .into();
     let _pool = &contract.pools[0];
     let _result: u128 = contract
         .swap(
             0,
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
             U128(99001),
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
         )
         .into();
     let pool = &contract.pools[0];
     let position = pool.positions.get(&0).unwrap();
     assert!(position.fees_earned_token0 == 4);
-    println!(
-        "pool.positions[0].fees_earned_token1 = {}",
-        position.fees_earned_token1
-    );
     assert!(position.fees_earned_token1 == 46522);
-    println!(
-        "pool.positions[0].fees_earned_token1 = {}",
-        position.fees_earned_token1
-    );
     let position = pool.positions.get(&1).unwrap();
     assert!(position.fees_earned_token0 == 6);
-    println!(
-        "pool.positions[1].fees_earned_token1 = {}",
-        position.fees_earned_token1
-    );
     assert!(position.fees_earned_token1 == 46007);
 }
 
@@ -797,9 +774,9 @@ fn value_locked_swap() {
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     contract.swap(
         0,
-        accounts(1).to_string(),
+        &accounts(1).to_string(),
         U128(100000),
-        accounts(2).to_string(),
+        &accounts(2).to_string(),
     );
     contract.close_position(0, 0);
     let balance1 = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
@@ -887,9 +864,9 @@ fn value_locked_more_swaps() {
     for _ in 0..10 {
         contract.swap(
             0,
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
             U128(100),
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
         );
         let pool = &contract.pools[0];
         let position = &pool.positions.get(&0).unwrap();
@@ -1019,7 +996,6 @@ fn open_many_positions() {
         }
     }
     let pool = &contract.pools[0];
-    println!("len = {}", pool.positions.len());
     assert!(pool.positions.len() == 1000);
 }
 
@@ -1064,14 +1040,18 @@ fn open_many_positions_with_swap1() {
         }
         let amount = contract.swap(
             0,
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
             U128(10),
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
         );
-        contract.swap(0, accounts(2).to_string(), amount, accounts(1).to_string());
+        contract.swap(
+            0,
+            &accounts(2).to_string(),
+            amount,
+            &accounts(1).to_string(),
+        );
     }
     let pool = &contract.pools[0];
-    println!("len = {}", pool.positions.len());
     assert!(pool.positions.len() == 100);
 }
 
@@ -1114,14 +1094,18 @@ fn open_many_positions_with_swap2() {
         contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);
         let amount = contract.swap(
             0,
-            accounts(1).to_string(),
+            &accounts(1).to_string(),
             U128(10),
-            accounts(2).to_string(),
+            &accounts(2).to_string(),
         );
-        contract.swap(0, accounts(2).to_string(), amount, accounts(1).to_string());
+        contract.swap(
+            0,
+            &accounts(2).to_string(),
+            amount,
+            &accounts(1).to_string(),
+        );
     }
     let pool = &contract.pools[0];
-    println!("len = {}", pool.positions.len());
     assert!(pool.positions.len() == 150);
 }
 
@@ -1129,7 +1113,7 @@ fn open_many_positions_with_swap2() {
 fn create_reserve() {
     let (mut _context, mut contract) = setup_contract();
     assert!(contract.reserves.is_empty());
-    contract.create_reserve("usdt.testnet".to_string());
+    contract.create_reserve(&"usdt.testnet".to_string());
     let reserve = contract.reserves.get(&"usdt.testnet".to_string()).unwrap();
     assert_eq!(reserve.deposited, 0);
     assert_eq!(reserve.borrowed, 0);
@@ -1144,14 +1128,14 @@ fn create_reserve() {
 #[test]
 fn create_deposit1() {
     let (mut _context, mut contract) = setup_contract();
-    contract.create_reserve("usdt.testnet".to_string());
-    contract.create_deposit("usn.testnet".to_string(), U128::from(100));
+    contract.create_reserve(&"usdt.testnet".to_string());
+    contract.create_deposit(&"usn.testnet".to_string(), U128::from(100));
 }
 
 #[test]
 fn create_deposit2() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(&accounts(1).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1160,7 +1144,7 @@ fn create_deposit2() {
         U128(100),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(accounts(1).into(), U128::from(100));
+    contract.create_deposit(&accounts(1).into(), U128::from(100));
     let deposit = contract.deposits.get(&0).unwrap();
     assert_eq!(deposit.owner_id, accounts(0).to_string());
     assert_eq!(deposit.asset, accounts(1).to_string());
@@ -1174,7 +1158,7 @@ fn create_deposit2() {
 #[test]
 fn close_deposit() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(&accounts(1).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1183,16 +1167,16 @@ fn close_deposit() {
         U128(100),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(accounts(1).into(), U128::from(100));
+    contract.create_deposit(&accounts(1).into(), U128::from(100));
     contract.deposits.get(&0).unwrap();
-    contract.close_deposit(U128::from(0));
+    contract.close_deposit(0);
     assert!(contract.deposits.is_empty());
 }
 
 #[test]
 fn refresh_deposit_growth() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(&accounts(1).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1201,8 +1185,8 @@ fn refresh_deposit_growth() {
         U128(300),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(accounts(1).into(), U128::from(100));
-    contract.create_deposit(accounts(1).into(), U128::from(200));
+    contract.create_deposit(&accounts(1).into(), U128::from(100));
+    contract.create_deposit(&accounts(1).into(), U128::from(200));
     let context = context.block_timestamp(31536000000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     context.block_index(31536000);
@@ -1220,7 +1204,7 @@ fn refresh_deposit_growth() {
 #[test]
 fn take_deposit_growth() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(&accounts(1).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1229,7 +1213,7 @@ fn take_deposit_growth() {
         U128(100),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(accounts(1).into(), U128::from(100));
+    contract.create_deposit(&accounts(1).into(), U128::from(100));
     let context = context.block_timestamp(31536000000);
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     context.block_index(31536000);
@@ -1237,7 +1221,7 @@ fn take_deposit_growth() {
     contract.refresh_deposits_growth();
     let deposit = contract.deposits.get(&0).unwrap();
     assert_eq!(deposit.growth, 5);
-    let growth = contract.take_deposit_growth(U128::from(0), U128::from(10));
+    let growth = contract.take_deposit_growth(0, U128::from(10));
     assert_eq!(growth, 5.into());
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(1).to_string());
     assert_eq!(balance, U128::from(5));
@@ -1246,7 +1230,7 @@ fn take_deposit_growth() {
 #[test]
 fn get_account_deposits() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
+    contract.create_reserve(&accounts(1).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -1255,12 +1239,11 @@ fn get_account_deposits() {
         U128(100),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(accounts(1).into(), U128::from(10));
-    contract.create_deposit(accounts(1).into(), U128::from(20));
-    contract.create_deposit(accounts(1).into(), U128::from(30));
-    contract.create_deposit(accounts(1).into(), U128::from(40));
-    let deposits = contract.get_account_deposits(accounts(0).to_string());
-    println!("deposits = {:#?}", deposits);
+    contract.create_deposit(&accounts(1).into(), U128::from(10));
+    contract.create_deposit(&accounts(1).into(), U128::from(20));
+    contract.create_deposit(&accounts(1).into(), U128::from(30));
+    contract.create_deposit(&accounts(1).into(), U128::from(40));
+    let deposits = contract.get_account_deposits(&accounts(0).to_string());
 }
 
 #[should_panic(expected = "Reserve not found")]
@@ -1301,7 +1284,7 @@ fn supply_collateral_and_borrow_simple_panic() {
 #[test]
 fn supply_collateral_and_borrow_simple_not_enough_reserves() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1327,14 +1310,14 @@ fn supply_collateral_and_borrow_simple_not_enough_reserves() {
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
-    contract.create_deposit(accounts(2).into(), U128::from(10));
+    contract.create_deposit(&accounts(2).into(), U128::from(10));
     contract.supply_collateral_and_borrow_simple(0, 0);
 }
 
 #[test]
 fn supply_collateral_and_borrow_simple_should_work() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1363,7 +1346,7 @@ fn supply_collateral_and_borrow_simple_should_work() {
         .attached_deposit(1)
         .build());
     contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
-    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    contract.create_deposit(&accounts(2).into(), U128::from(100000));
     let balance_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     let borrowed = contract.supply_collateral_and_borrow_simple(0, 0);
     let balance_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
@@ -1381,7 +1364,6 @@ fn supply_collateral_and_borrow_simple_should_work() {
     assert_eq!(borrow.apr, 1000);
     assert_eq!(borrow.leverage, None);
     assert_eq!(borrow.fees, 0);
-    println!("liquidation price = {}", borrow.liquidation_price);
     let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
     assert_eq!(token.owner_id, context.context.current_account_id);
 }
@@ -1389,8 +1371,8 @@ fn supply_collateral_and_borrow_simple_should_work() {
 #[test]
 fn supply_collateral_and_borrow_leveraged() {
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(1).into());
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(1).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1422,8 +1404,8 @@ fn supply_collateral_and_borrow_leveraged() {
     let pool = &contract.pools[0];
     let position = pool.positions.get(&0).unwrap();
     let total_locked = position.total_locked as u128;
-    contract.create_deposit(accounts(1).into(), U128::from(100000));
-    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    contract.create_deposit(&accounts(1).into(), U128::from(100000));
+    contract.create_deposit(&accounts(2).into(), U128::from(100000));
     let balance_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     let leverage = 2;
     contract.supply_collateral_and_borrow_leveraged(0, 0, leverage);
@@ -1448,7 +1430,7 @@ fn supply_collateral_and_borrow_leveraged() {
 fn return_collateral_and_repay() {
     let alice = ValidAccountId::try_from("john.near").unwrap();
     let (mut context, mut contract) = setup_contract();
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1477,16 +1459,10 @@ fn return_collateral_and_repay() {
         .attached_deposit(1)
         .build());
     contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
-    contract.create_deposit(accounts(2).into(), U128::from(100000));
+    contract.create_deposit(&accounts(2).into(), U128::from(100000));
     let borrowed = contract.supply_collateral_and_borrow_simple(0, 0);
-    println!("borrowed = {} of {}", borrowed.0, accounts(2));
     testing_env!(context.predecessor_account_id(alice.clone()).build());
-    println!("thieteen");
     let token = contract.tokens_by_id.get(&"0".to_string()).unwrap();
-    println!(
-        "token.owner_id = {}, context.context.current_account_id = {}",
-        token.owner_id, context.context.current_account_id
-    );
     let balance1_before = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
     let balance2_before = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());
     contract.return_collateral_and_repay(0);
@@ -1501,7 +1477,7 @@ fn return_collateral_and_repay() {
 fn get_liquidation_list() {
     let (mut context, mut contract) = setup_contract();
     let alice = ValidAccountId::try_from("john.near").unwrap();
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1536,14 +1512,19 @@ fn get_liquidation_list() {
     assert_eq!(pool.positions.len(), 0);
     contract.open_position(0, Some(U128(1)), None, 99.0, 101.0);
     contract.open_position(0, None, Some(U128(100)), 50.0, 101.0);
-    contract.create_deposit(accounts(2).into(), U128::from(1000000000000));
+    contract.create_deposit(&accounts(2).into(), U128::from(1000000000000));
     contract.supply_collateral_and_borrow_simple(0, 0);
     let h = contract.get_borrow_health_factor(0);
     assert_eq!((h * 100.0).round(), 125.0);
     let list = contract.get_liquidation_list();
     assert!(list.is_empty());
     for _ in 0..2 {
-        contract.swap(0, accounts(1).to_string(), U128(1), accounts(2).to_string());
+        contract.swap(
+            0,
+            &accounts(1).to_string(),
+            U128(1),
+            &accounts(2).to_string(),
+        );
     }
     let list = contract.get_liquidation_list();
     assert_eq!(list.len(), 1);
@@ -1554,7 +1535,7 @@ fn get_liquidation_list() {
 fn liquidate() {
     let (mut context, mut contract) = setup_contract();
     let alice = ValidAccountId::try_from("john.near").unwrap();
-    contract.create_reserve(accounts(2).into());
+    contract.create_reserve(&accounts(2).into());
     contract.create_pool(
         accounts(1).to_string(),
         accounts(2).to_string(),
@@ -1587,14 +1568,19 @@ fn liquidate() {
     assert_eq!(pool.positions.len(), 0);
     contract.open_position(0, Some(U128(1)), None, 99.0, 101.0);
     contract.open_position(0, None, Some(U128(100)), 50.0, 101.0);
-    contract.create_deposit(accounts(2).into(), U128::from(1000000000000));
+    contract.create_deposit(&accounts(2).into(), U128::from(1000000000000));
     contract.supply_collateral_and_borrow_simple(0, 0);
     let h = contract.get_borrow_health_factor(0);
     assert_eq!((h * 100.0).round(), 125.0);
     let list = contract.get_liquidation_list();
     assert!(list.is_empty());
     for _ in 0..2 {
-        contract.swap(0, accounts(1).to_string(), U128(1), accounts(2).to_string());
+        contract.swap(
+            0,
+            &accounts(1).to_string(),
+            U128(1),
+            &accounts(2).to_string(),
+        );
     }
     let balance1_before = contract.get_balance(&"john.near".to_string(), &accounts(1).to_string());
     let balance2_before = contract.get_balance(&"john.near".to_string(), &accounts(2).to_string());

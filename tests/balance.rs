@@ -65,7 +65,7 @@ fn test_balance_after_withdraw() {
 }
 
 #[test]
-#[should_panic(expected = "Not enough tokens")]
+#[should_panic(expected = "You want to withdraw 20000 of bob but only have 10000")]
 fn test_balance_withdraw_not_enough_token() {
     let (mut context, mut contract) = setup_contract();
     testing_env!(context.predecessor_account_id(accounts(0)).build());

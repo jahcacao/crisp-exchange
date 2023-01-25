@@ -17,20 +17,27 @@ enum TokenReceiverMessage {
 }
 
 impl Contract {
-    fn internal_execute(&mut self, actions: &[Action]) {
+    fn internal_execute(&mut self, token_in: AccountId, actions: &[Action]) {
         for action in actions {
             match action {
                 Action::Swap(swap_action) => {
+                    assert_eq!(token_in, swap_action.token_in);
                     self.swap(
                         swap_action.pool_id,
-                        swap_action.token_in.clone(),
+                        &swap_action.token_in,
                         swap_action.amount_in,
-                        swap_action.token_out.clone(),
+                        &swap_action.token_out,
                     );
                 }
                 Action::Withdraw(withdraw_action) => {
-                    self.withdraw(withdraw_action.token.clone(), withdraw_action.amount);
+                    self.withdraw(&withdraw_action.token, withdraw_action.amount);
                 }
+                Action::MultihopeSwap(_) => todo!(),
+                Action::OpenPosition(_) => todo!(),
+                Action::AddLiquidity(_) => todo!(),
+                Action::CreateDeposit(_) => todo!(),
+                Action::ReturnCollateralAndRepay(_) => todo!(),
+                Action::Liquidate(_) => todo!(),
             }
         }
     }
@@ -55,7 +62,7 @@ impl FungibleTokenReceiver for Contract {
         let message = serde_json::from_str::<TokenReceiverMessage>(&msg).expect("Wrong msg format");
         match message {
             TokenReceiverMessage::Execute { actions } => {
-                self.internal_execute(&actions);
+                self.internal_execute(token_in, &actions);
                 return PromiseOrValue::Value(U128(0));
             }
         }

@@ -292,10 +292,6 @@ impl Pool {
         amount_out.abs()
     }
 
-    pub fn get_sqrt_price(&self) -> f64 {
-        self.sqrt_price
-    }
-
     pub fn refresh(&mut self, current_timestamp: u64) {
         let mut liquidity = 0.0;
         let mut token0_locked = 0.0;
@@ -396,13 +392,9 @@ mod test {
         let mut pool = Pool::new(token0.clone(), token1.clone(), 100.0, 0, 0);
         let position = Position::new(String::new(), Some(U128(50)), None, 1.0, 10000.0, 10.0);
         assert!(position.liquidity.floor() == 555.0);
-        println!("before opening position");
         pool.open_position(0, position);
-        println!("opening position");
         pool.refresh(0);
-        println!("refreshed");
         let result = pool.get_swap_result(&token1, 1000, SwapDirection::Return);
-        println!("after result");
         assert!(result.amount.floor() == 8.0);
         assert!(result.new_sqrt_price.floor() == 11.0);
         assert!(result.new_liquidity.floor() == 555.0);
@@ -470,12 +462,8 @@ mod test {
         let position = Position::new(String::new(), Some(U128(5000)), None, 90.0, 110.0, 10.0);
         pool.open_position(0, position);
         pool.refresh(0);
-        println!("pool.token0_locked = {}", pool.token0_locked);
-        println!("pool.token1_locked = {}", pool.token1_locked);
         let result = pool.get_swap_result(&token0, 1, SwapDirection::Return);
         let new_tick = sqrt_price_to_tick(result.new_sqrt_price);
-        println!("new_tick = {new_tick}");
-        println!("pool.tick = {}", pool.tick);
         assert!(new_tick == pool.tick);
     }
 
@@ -528,8 +516,6 @@ mod test {
             pool.open_position(i, position);
             pool.refresh(0);
         }
-        println!("pool.token0_locked = {}", pool.token0_locked);
-        println!("pool.token1_locked = {}", pool.token1_locked);
         pool.get_swap_result(&token0, 1000000, SwapDirection::Return);
         pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
     }
@@ -551,8 +537,6 @@ mod test {
             pool.open_position(i, position);
             pool.refresh(0);
         }
-        println!("pool.token0_locked = {}", pool.token0_locked);
-        println!("pool.token1_locked = {}", pool.token1_locked);
         pool.get_swap_result(&token0, 495000, SwapDirection::Return);
         pool.get_swap_result(&token1, 1000000, SwapDirection::Expense);
     }
@@ -730,21 +714,15 @@ mod test {
         );
         position.refresh(7.0, 0);
         pool.refresh(0);
-        println!("position.token0_locked = {}", position.token0_locked);
         assert!(position.token0_locked.round() == 150.0);
-        println!("position.liquidity = {}", position.liquidity);
         let liquidity1 = position.liquidity;
-        println!("position.token1_locked = {}", position.token1_locked);
         let token1_locked1 = position.token1_locked;
         position.remove_liquidity(Some(U128(100)), None, 7.0);
         pool.refresh(0);
         position.refresh(7.0, 0);
-        println!("position.token0_locked = {}", position.token0_locked);
         assert!(position.token0_locked.round() == 50.0);
-        println!("position.liquidity = {}", position.liquidity);
         let liquidity2 = position.liquidity;
         let token1_locked2 = position.token1_locked;
-        println!("position.token1_locked = {}", position.token1_locked);
         assert!((liquidity1 / liquidity2) == (token1_locked1 / token1_locked2));
     }
 
@@ -763,21 +741,15 @@ mod test {
         );
         position.refresh(7.0, 0);
         pool.refresh(0);
-        println!("position.token0_locked = {}", position.token0_locked);
         assert!(position.token1_locked.round() == 150.0);
-        println!("position.liquidity = {}", position.liquidity);
         let liquidity1 = position.liquidity;
-        println!("position.token1_locked = {}", position.token1_locked);
         let token0_locked1 = position.token0_locked;
         position.remove_liquidity(None, Some(U128(100)), 7.0);
         pool.refresh(0);
         position.refresh(7.0, 0);
-        println!("position.token0_locked = {}", position.token0_locked);
         assert!(position.token1_locked.round() == 50.0);
-        println!("position.liquidity = {}", position.liquidity);
         let liquidity2 = position.liquidity;
         let token0_locked2 = position.token0_locked;
-        println!("position.token1_locked = {}", position.token1_locked);
         assert!((liquidity1 / liquidity2) == (token0_locked1 / token0_locked2));
     }
 }
