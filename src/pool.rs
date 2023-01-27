@@ -187,13 +187,11 @@ impl Pool {
     }
 
     fn calculate_liquidity_within_tick(&self, sqrt_price: f64) -> f64 {
-        let mut liquidity = 0.0;
-        for (_, position) in &self.positions {
-            if position.is_active(sqrt_price) {
-                liquidity += position.liquidity;
-            }
-        }
-        liquidity
+        self.positions
+            .iter()
+            .filter(|(_, x)| x.is_active(sqrt_price))
+            .map(|(_, x)| x.liquidity)
+            .sum()
     }
 
     fn get_amount_in_within_tick(

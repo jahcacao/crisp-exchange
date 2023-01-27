@@ -495,14 +495,11 @@ impl Contract {
         0.into()
     }
 
-    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<DepositId, Deposit> {
-        let mut result: HashMap<DepositId, Deposit> = HashMap::new();
-        for (id, deposit) in &self.deposits {
-            if &deposit.owner_id == account_id {
-                result.insert(*id, deposit.clone());
-            }
-        }
-        result
+    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<&DepositId, &Deposit> {
+        self.deposits
+            .iter()
+            .filter(|(_, x)| &x.owner_id == account_id)
+            .collect()
     }
 
     pub fn supply_collateral_and_borrow_simple(
@@ -649,13 +646,11 @@ impl Contract {
     }
 
     pub fn get_liquidation_list(&self) -> Vec<BorrowId> {
-        let mut result = Vec::new();
-        for (id, _) in self.borrows.iter() {
-            if self.get_borrow_health_factor(id) < 1.0 {
-                result.push(id);
-            }
-        }
-        result
+        self.borrows
+            .iter()
+            .filter(|(id, _)| self.get_borrow_health_factor(*id) < 1.0)
+            .map(|(id, _)| id)
+            .collect()
     }
 
     pub fn get_borrow_health_factor(&self, borrow_id: BorrowId) -> f64 {
