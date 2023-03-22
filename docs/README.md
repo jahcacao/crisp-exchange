@@ -239,6 +239,25 @@ Liquidate a borrow:
 near call $CONTRACT_ID liquidate '{"borrow_id": 0}' --accountId $USER_ID
 ```
 
+How to make a deposit for lending:
+1. call method ```create_deposit``` with arguments ```asset = exapmle.near```, ```amount = 10```
+2. as a default ARP for deposits is 5%
+3. to close deposit use method ```close_deposit``` with argument ```deposit_id = 1```
+
+How to borrow assets:
+1. to calculate how much we can take from position use formula ```p * x + y``` (this is for second token)
+2. to borrow use method ```supply_collateral_and_borrow_simple``` with arguments ```position_id = 2``` ```pool_id = 1```
+3. to check the health factor of a borrow use method ```get_borrow_health_factor``` with argument ```borrow_id = 0```
+4. to return borrow use ```return_collateral_and_repay``` with argument ```borrow_id = 0```
+
+How to borrow assets with leverage:
+1. to calculate how much we can take from position use formula ```p * x + y``` (this is for second token)
+2. to borrow use method ```supply_collateral_and_borrow_leveraged``` with arguments ```position_id = 2``` ```pool_id = 1``` ```leverage = 4```
+3. to check the health factor of a borrow use method ```get_borrow_health_factor``` with argument ```borrow_id = 0```
+4. to return borrow use ```return_collateral_and_repay``` with argument ```borrow_id = 0```
+
+
+
 
 
 
