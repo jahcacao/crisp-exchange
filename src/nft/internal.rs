@@ -106,9 +106,9 @@ impl Contract {
     ) -> Token {
         let token = self.tokens_by_id.get(token_id).expect(NFT0);
         if sender_id != &token.owner_id {
-            if !token.approved_account_ids.contains_key(sender_id) {
-                panic!("{}", NFT4);
-            }
+            // if !token.approved_account_ids.contains_key(sender_id) {
+            //     panic!("{}", NFT4);
+            // }
             if let Some(enforced_approval_id) = approval_id {
                 let actual_approval_id = token.approved_account_ids.get(sender_id).expect(NFT5);
                 assert_eq!(

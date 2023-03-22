@@ -57,7 +57,7 @@ trait NonFungibleTokenResolver {
 
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
-    #[payable]
+    // #[payable]
     fn nft_transfer(
         &mut self,
         receiver_id: AccountId,
@@ -65,7 +65,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<u64>,
         memo: Option<String>,
     ) {
-        assert_one_yocto();
+        // assert_one_yocto();
         let sender_id = env::predecessor_account_id();
         let previous_token =
             self.internal_transfer(&sender_id, &receiver_id, &token_id, approval_id, memo);

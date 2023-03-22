@@ -502,6 +502,7 @@ impl Contract {
             .collect()
     }
 
+    #[payable]
     pub fn supply_collateral_and_borrow_simple(
         &mut self,
         pool_id: usize,
@@ -547,6 +548,7 @@ impl Contract {
         borrowed.into()
     }
 
+    #[payable]
     pub fn supply_collateral_and_borrow_leveraged(
         &mut self,
         pool_id: usize,
