@@ -195,6 +195,10 @@ impl Contract {
         vec.into_iter().map(|x| -x).collect()
     }
 
+    pub fn positions_opened(&self) -> u128 {
+        self.positions_opened
+    }
+
     #[private]
     pub fn remove_pool(&mut self, pool_id: usize) {
         self.assert_pool_exists(pool_id);
@@ -495,11 +499,21 @@ impl Contract {
         0.into()
     }
 
-    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<&DepositId, &Deposit> {
-        self.deposits
+    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<AccountId, u128> {
+        let map: HashMap<&DepositId, &Deposit> = self
+            .deposits
             .iter()
             .filter(|(_, x)| &x.owner_id == account_id)
-            .collect()
+            .collect();
+        let mut result: HashMap<AccountId, u128> = HashMap::new();
+        for (_, deposit) in map {
+            let amount: u128 = match result.contains_key(&deposit.asset) {
+                true => *result.get(&deposit.asset).unwrap(),
+                _ => 0,
+            };
+            result.insert(deposit.asset.clone(), amount + deposit.amount);
+        }
+        result
     }
 
     #[payable]

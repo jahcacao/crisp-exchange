@@ -432,6 +432,8 @@ fn refresh_deposit_growth() {
 fn create_deposit2() {
     let (mut context, mut contract) = setup_contract();
     contract.create_reserve(&accounts(1).into());
+    contract.create_reserve(&accounts(2).into());
+    contract.create_reserve(&accounts(3).into());
     deposit_tokens(
         &mut context,
         &mut contract,
@@ -439,16 +441,43 @@ fn create_deposit2() {
         accounts(1),
         U128(100),
     );
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(2),
+        U128(100),
+    );
+    deposit_tokens(
+        &mut context,
+        &mut contract,
+        accounts(0),
+        accounts(3),
+        U128(100),
+    );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
-    contract.create_deposit(&accounts(1).into(), U128::from(100));
+    contract.create_deposit(&accounts(1).into(), U128::from(10));
+    contract.create_deposit(&accounts(1).into(), U128::from(20));
+    contract.create_deposit(&accounts(1).into(), U128::from(30));
+    contract.create_deposit(&accounts(2).into(), U128::from(1));
+    contract.create_deposit(&accounts(2).into(), U128::from(2));
+    contract.create_deposit(&accounts(2).into(), U128::from(3));
+    contract.create_deposit(&accounts(3).into(), U128::from(50));
+    contract.create_deposit(&accounts(3).into(), U128::from(10));
+    contract.create_deposit(&accounts(3).into(), U128::from(20));
     let deposit = contract.deposits.get(&0).unwrap();
     assert_eq!(deposit.owner_id, accounts(0).to_string());
     assert_eq!(deposit.asset, accounts(1).to_string());
-    assert_eq!(deposit.amount, 100);
+    assert_eq!(deposit.amount, 10);
     assert_eq!(deposit.timestamp, 0);
     assert_eq!(deposit.last_update_timestamp, 0);
     assert_eq!(deposit.apr, 500);
     assert_eq!(deposit.growth, 0);
+
+    let deposits = contract.get_account_deposits(&accounts(0).to_string());
+    assert_eq!(*deposits.get(&accounts(1).to_string()).unwrap(), 60);
+    assert_eq!(*deposits.get(&accounts(2).to_string()).unwrap(), 6);
+    assert_eq!(*deposits.get(&accounts(3).to_string()).unwrap(), 80);
 }
 
 #[test]
