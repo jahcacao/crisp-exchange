@@ -1,6 +1,7 @@
 use balance::borrow::{Borrow, BorrowId};
 use balance::deposit::{Deposit, DepositId};
 use balance::reserve::Reserve;
+use balance::token_receiver::OpenPositionRequest;
 use balance::BalancesMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
@@ -74,6 +75,7 @@ pub struct Contract {
     pub borrows_number: BorrowId,
     pub routes: HashMap<Pair, Vec<i32>>,
     pub routes_counter: i32,
+    pub open_position_requests: HashMap<usize, OpenPositionRequest>,
 }
 
 #[ext_contract(ext_self)]
@@ -121,6 +123,7 @@ impl Contract {
             borrows_number: 0,
             routes: HashMap::new(),
             routes_counter: 1,
+            open_position_requests: HashMap::new(),
         }
     }
 
@@ -333,7 +336,7 @@ impl Contract {
         let position_id = self.positions_opened;
         self.positions_opened += 1;
         let pool = &self.pools[pool_id];
-        let account_id = env::predecessor_account_id();
+        let account_id = env::signer_account_id();
         let position = Position::new(
             account_id.clone(),
             token0_liquidity,
@@ -499,21 +502,11 @@ impl Contract {
         0.into()
     }
 
-    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<AccountId, u128> {
-        let map: HashMap<&DepositId, &Deposit> = self
-            .deposits
+    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<&DepositId, &Deposit> {
+        self.deposits
             .iter()
             .filter(|(_, x)| &x.owner_id == account_id)
-            .collect();
-        let mut result: HashMap<AccountId, u128> = HashMap::new();
-        for (_, deposit) in map {
-            let amount: u128 = match result.contains_key(&deposit.asset) {
-                true => *result.get(&deposit.asset).unwrap(),
-                _ => 0,
-            };
-            result.insert(deposit.asset.clone(), amount + deposit.amount);
-        }
-        result
+            .collect()
     }
 
     #[payable]
@@ -667,6 +660,35 @@ impl Contract {
             .filter(|(id, _)| self.get_borrow_health_factor(*id) < 1.0)
             .map(|(id, _)| id)
             .collect()
+    }
+
+    pub fn get_borrows_by_account(&self, account_id: AccountId) -> Vec<Borrow> {
+        self.borrows
+            .iter()
+            .filter(|(_, borrow)| borrow.owner_id == account_id)
+            .map(|(_, borrow)| borrow)
+            .collect()
+    }
+
+    pub fn get_liquidation_price(
+        &self,
+        pool_id: usize,
+        token0_liquidity: Option<U128>,
+        token1_liquidity: Option<U128>,
+        lower_bound_price: f64,
+        upper_bound_price: f64,
+    ) -> f64 {
+        self.assert_pool_exists(pool_id);
+        let pool = &self.pools[pool_id];
+        let position = Position::new(
+            String::new(),
+            token0_liquidity,
+            token1_liquidity,
+            lower_bound_price,
+            upper_bound_price,
+            pool.sqrt_price,
+        );
+        position.get_liquidation_price(position.total_locked)
     }
 
     pub fn get_borrow_health_factor(&self, borrow_id: BorrowId) -> f64 {

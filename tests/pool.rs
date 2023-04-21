@@ -63,6 +63,7 @@ fn open_position_is_correct() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(27505));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(50)), None, 25.0, 121.0);
     let pool = contract.get_pool(0);
     assert!(pool.liquidity == 5500.834197154125);
@@ -106,6 +107,7 @@ fn open_position_less_than_lower_bound() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(3000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(50)), None, 121.0, 144.0);
     let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
@@ -149,6 +151,7 @@ fn open_position_more_than_upper_bound() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(3000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(50)), 64.0, 81.0);
     let pool = contract.get_pool(0);
     assert!(pool.liquidity == 0.0);
@@ -192,6 +195,7 @@ fn open_two_positions() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(30000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     let pool = contract.get_pool(0);
@@ -232,6 +236,7 @@ fn open_three_positions() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(30000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     contract.open_position(0, None, Some(U128(150)), 81.0, 169.0);
@@ -273,6 +278,7 @@ fn open_ten_positions() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(3000000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     contract.open_position(0, None, Some(U128(150)), 81.0, 169.0);
@@ -321,6 +327,7 @@ fn close_position() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(30000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(50)), 64.0, 121.0);
     contract.close_position(0, 0);
     let pool = contract.get_pool(0);
@@ -365,6 +372,7 @@ fn close_two_position() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(3000000));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     contract.open_position(0, Some(U128(100)), None, 49.0, 144.0);
     contract.close_position(0, 1);
@@ -416,6 +424,7 @@ fn get_expense() {
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(1100507792));
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(10000000)), None, 81.0, 121.0);
     let result1 = contract.get_expense(0, &accounts(1).to_string(), U128(1));
     let result2 = contract.get_expense(0, &accounts(2).to_string(), U128(1000));
@@ -548,6 +557,7 @@ fn value_locked_open_close() {
         U128(11005078),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 81.0, 121.0);
     let pool = &contract.pools[0];
     assert!(pool.token0_locked == 100000);
@@ -748,6 +758,7 @@ fn add_and_remove_liquidity1() {
         U128(initial_balance2),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, Some(U128(100000)), None, 9990.0, 11000.0);
     contract.remove_liquidity(0, 0, Some(U128(10000)), None);
     contract.add_liquidity(0, 0, Some(U128(10000)), None);
@@ -785,6 +796,7 @@ fn add_and_remove_liquidity2() {
         U128(initial_balance2),
     );
     testing_env!(context.predecessor_account_id(accounts(0)).build());
+    testing_env!(context.signer_account_id(accounts(0)).build());
     contract.open_position(0, None, Some(U128(100000)), 9990.0, 11000.0);
     contract.remove_liquidity(0, 0, None, Some(U128(10000)));
     contract.add_liquidity(0, 0, None, Some(U128(10000)));
@@ -823,6 +835,9 @@ fn open_many_positions() {
         );
         testing_env!(context
             .predecessor_account_id(serde_json::from_str(account.as_str()).unwrap())
+            .build());
+        testing_env!(context
+            .signer_account_id(serde_json::from_str(account.as_str()).unwrap())
             .build());
         for _ in 0..10 {
             contract.open_position(0, Some(U128(50)), None, 64.0, 121.0);

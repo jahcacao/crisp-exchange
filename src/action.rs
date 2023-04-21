@@ -25,6 +25,7 @@ pub struct MultihopeSwapAction {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct OpenPositionAction {
+    pub request_id: usize,
     pub pool_id: usize,
     pub token0_liquidity: Option<U128>,
     pub token1_liquidity: Option<U128>,

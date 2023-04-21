@@ -16,6 +16,17 @@ enum TokenReceiverMessage {
     Execute { actions: Vec<Action> },
 }
 
+#[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OpenPositionRequest {
+    pub owner_id: AccountId,
+    pub pool_id: usize,
+    pub token0_liquidity: Option<U128>,
+    pub token1_liquidity: Option<U128>,
+    pub lower_bound_price: f64,
+    pub upper_bound_price: f64,
+}
+
 impl Contract {
     // may be needed to change predecessor_id -> signer_id in some method
     fn internal_execute(&mut self, token_in: AccountId, actions: &[Action]) {
@@ -37,13 +48,43 @@ impl Contract {
                     self.swap_multihope(&action.token_in, action.amount_in, &action.token_out);
                 }
                 Action::OpenPosition(action) => {
-                    self.open_position(
-                        action.pool_id,
-                        action.token0_liquidity,
-                        action.token1_liquidity,
-                        action.lower_bound_price,
-                        action.upper_bound_price,
-                    );
+                    let account = env::signer_account_id();
+                    if let Some(request) = self.open_position_requests.get(&action.request_id) {
+                        let mut request = request.clone();
+                        assert_eq!(account, request.owner_id);
+                        assert_eq!(action.pool_id, request.pool_id);
+                        assert_eq!(action.lower_bound_price, request.lower_bound_price);
+                        assert_eq!(action.upper_bound_price, request.upper_bound_price);
+                        assert!(
+                            action.token0_liquidity.is_some() && request.token0_liquidity.is_some()
+                                || action.token1_liquidity.is_some()
+                                    && request.token1_liquidity.is_some()
+                        );
+                        if request.token0_liquidity.is_none() {
+                            request.token0_liquidity = action.token0_liquidity;
+                        } else {
+                            request.token1_liquidity = action.token1_liquidity;
+                        }
+                        self.open_position(
+                            request.pool_id,
+                            request.token0_liquidity,
+                            request.token1_liquidity,
+                            request.lower_bound_price,
+                            request.upper_bound_price,
+                        );
+                        self.open_position_requests.remove(&action.request_id);
+                    } else {
+                        let request = OpenPositionRequest {
+                            owner_id: account,
+                            pool_id: action.pool_id,
+                            token0_liquidity: action.token0_liquidity,
+                            token1_liquidity: action.token1_liquidity,
+                            lower_bound_price: action.lower_bound_price,
+                            upper_bound_price: action.upper_bound_price,
+                        };
+                        self.open_position_requests
+                            .insert(action.request_id, request);
+                    }
                 }
                 Action::AddLiquidity(action) => {
                     self.add_liquidity(

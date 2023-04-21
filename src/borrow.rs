@@ -1,10 +1,12 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::serde::Serialize;
 use near_sdk::AccountId;
 
 use crate::deposit::{BASIS_POINT_BASE, MS_IN_YEAR};
 
 pub type BorrowId = u128;
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Borrow {
     pub owner_id: AccountId,
     pub asset: AccountId,
