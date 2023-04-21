@@ -133,6 +133,7 @@ Returns position id:
 ```
 0
 ```
+For use through frontend you have to add parameter ```request_id``` on cross-contract call string. This parameter has to be equal for both calls (for token0.testnet and token1.testnet), to make cross-contract calls match on our contract.
 Close position:
 ```
 near call $CONTRACT_ID close_position '{"pool_id": 0, "position_id": 12}' --accountId $USER_ID

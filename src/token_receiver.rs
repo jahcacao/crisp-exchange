@@ -55,11 +55,6 @@ impl Contract {
                         assert_eq!(action.pool_id, request.pool_id);
                         assert_eq!(action.lower_bound_price, request.lower_bound_price);
                         assert_eq!(action.upper_bound_price, request.upper_bound_price);
-                        assert!(
-                            action.token0_liquidity.is_some() && request.token0_liquidity.is_some()
-                                || action.token1_liquidity.is_some()
-                                    && request.token1_liquidity.is_some()
-                        );
                         if request.token0_liquidity.is_none() {
                             request.token0_liquidity = action.token0_liquidity;
                         } else {
@@ -74,6 +69,11 @@ impl Contract {
                         );
                         self.open_position_requests.remove(&action.request_id);
                     } else {
+                        assert!(
+                            action.token0_liquidity.is_some() ^ action.token1_liquidity.is_some(),
+                            "{}",
+                            PST5
+                        );
                         let request = OpenPositionRequest {
                             owner_id: account,
                             pool_id: action.pool_id,
