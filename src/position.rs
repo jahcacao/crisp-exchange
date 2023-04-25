@@ -264,20 +264,29 @@ impl Position {
         self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
     }
 
-    pub fn get_liquidation_price(&self, borrowed: f64) -> f64 {
-        let left_threshold = self.sqrt_lower_bound_price
-            * (self.liquidity / borrowed)
-            * (1.0 / self.sqrt_lower_bound_price - 1.0 / self.sqrt_upper_bound_price);
-        if left_threshold > 1.0 {
-            return (borrowed / self.liquidity)
-                * (self.sqrt_lower_bound_price * self.sqrt_upper_bound_price
-                    / (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price));
-        } else {
-            let d = 1.0
-                - (self.sqrt_lower_bound_price + borrowed / self.liquidity)
-                    / self.sqrt_upper_bound_price;
-            return self.sqrt_upper_bound_price * self.sqrt_upper_bound_price * (1.0 - d.sqrt());
-        }
+    pub fn get_liquidation_price(&self, borrowed0: f64, borrowed1: f64) -> (f64, f64) {
+        // let left_threshold = self.sqrt_lower_bound_price
+        //     * (self.liquidity / borrowed)
+        //     * (1.0 / self.sqrt_lower_bound_price - 1.0 / self.sqrt_upper_bound_price);
+        // if left_threshold > 1.0 {
+        //     return (borrowed / self.liquidity)
+        //         * (self.sqrt_lower_bound_price * self.sqrt_upper_bound_price
+        //             / (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price));
+        // } else {
+        //     let d = 1.0
+        //         - (self.sqrt_lower_bound_price + borrowed / self.liquidity)
+        //             / self.sqrt_upper_bound_price;
+        //     return self.sqrt_upper_bound_price * self.sqrt_upper_bound_price * (1.0 - d.sqrt());
+        // }
+        let first = borrowed1
+            / (self.liquidity
+                * ((self.sqrt_lower_bound_price - self.sqrt_lower_bound_price) - borrowed0)
+                / self.sqrt_lower_bound_price
+                * self.sqrt_lower_bound_price);
+        let second = (self.liquidity * (self.sqrt_lower_bound_price - self.sqrt_lower_bound_price)
+            - borrowed1)
+            / borrowed0;
+        (first, second)
     }
 }
 

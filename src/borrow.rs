@@ -9,8 +9,10 @@ pub type BorrowId = u128;
 #[serde(crate = "near_sdk::serde")]
 pub struct Borrow {
     pub owner_id: AccountId,
-    pub asset: AccountId,
-    pub borrowed: u128,
+    pub asset0: AccountId,
+    pub asset1: AccountId,
+    pub borrowed0: u128,
+    pub borrowed1: u128,
     pub collateral: u128,
     pub position_id: u128,
     pub pool_id: usize,
@@ -18,7 +20,7 @@ pub struct Borrow {
     pub apr: u16,
     pub leverage: Option<u128>,
     pub fees: u128,
-    pub liquidation_price: f64,
+    pub liquidation_price: (f64, f64),
 }
 
 impl Borrow {
@@ -27,7 +29,7 @@ impl Borrow {
     }
 
     pub fn calculate_fees(&self, current_timestamp: u64) -> u128 {
-        let fees = (self.borrowed as f64)
+        let fees = (self.borrowed1 as f64)
             * Self::timestamp_difference_to_coefficient(
                 current_timestamp - self.last_update_timestamp,
                 self.apr,
