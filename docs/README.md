@@ -173,23 +173,14 @@ Create deposit:
 near call $CONTRACT_ID create_deposit '{"asset": "'$TOKEN1'", "amount": "100000"}' --accountId $USER_ID
 ```
 
-Close deposit:
+Take out arbitrary amount of tokens from deposit:
 ```
-near call $CONTRACT_ID close_deposit '{"deposit_id": "0"}' --accountId $USER_ID
+near call $CONTRACT_ID close_deposit '{"asset": "'$TOKEN1'", "amount": "100000"}' --accountId $USER_ID
 ```
 
 Refresh deposits growth:
 ```
 near call $CONTRACT_ID refresh_deposits_growth '{}' --accountId $CONTRACT_ID
-```
-
-Take deposit growth:
-```
-near call $CONTRACT_ID take_deposit_growth '{"deposit_id": "0", "amount": "100"}' --accountId $USER_ID
-```
-Returns amount taken
-```
-50
 ```
 
 Get deposits for a certain account:
@@ -198,18 +189,9 @@ near call $CONTRACT_ID get_account_deposits '{"account_id": "'$USER_ID'"}' --acc
 ```
 Returns all the deposits made from USER_ID account
 
-Supply collateral and borrow without leverage:
-```
-near call $CONTRACT_ID supply_collateral_and_borrow_simple '{"pool_id": 0, "position_id": 0}' --accountId $USER_ID
-```
-Returns the amount borrowed
-```
-567
-```
-
 Supply collateral and borrow with leverage:
 ```
-near call $CONTRACT_ID supply_collateral_and_borrow_leveraged '{"pool_id": 0, "position_id": 0, "leverage": 2}' --accountId $USER_ID
+near call $CONTRACT_ID supply_collateral_and_borrow '{"pool_id": 0, "position_id": 0, "leverage": 2}' --accountId $USER_ID
 ```
 
 Return collateral and repay:
@@ -247,12 +229,6 @@ How to make a deposit for lending:
 
 How to borrow assets:
 1. to calculate how much we can take from position use formula ```p * x + y``` (this is for second token)
-2. to borrow use method ```supply_collateral_and_borrow_simple``` with arguments ```position_id = 2``` ```pool_id = 1```
-3. to check the health factor of a borrow use method ```get_borrow_health_factor``` with argument ```borrow_id = 0```
-4. to return borrow use ```return_collateral_and_repay``` with argument ```borrow_id = 0```
-
-How to borrow assets with leverage:
-1. to calculate how much we can take from position use formula ```p * x + y``` (this is for second token)
-2. to borrow use method ```supply_collateral_and_borrow_leveraged``` with arguments ```position_id = 2``` ```pool_id = 1``` ```leverage = 4```
+2. to borrow use method ```supply_collateral_and_borrow``` with arguments ```position_id = 2``` ```pool_id = 1``` ```leverage = 4```
 3. to check the health factor of a borrow use method ```get_borrow_health_factor``` with argument ```borrow_id = 0```
 4. to return borrow use ```return_collateral_and_repay``` with argument ```borrow_id = 0```

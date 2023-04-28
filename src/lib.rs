@@ -608,7 +608,7 @@ impl Contract {
     // }
 
     #[payable]
-    pub fn supply_collateral_and_borrow_leveraged(
+    pub fn supply_collateral_and_borrow(
         &mut self,
         pool_id: usize,
         position_id: u128,

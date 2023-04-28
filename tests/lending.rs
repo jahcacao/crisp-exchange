@@ -223,7 +223,7 @@ fn supply_collateral_and_borrow_leveraged() {
     contract.create_deposit(&accounts(2).into(), U128::from(100000));
     let balance_before = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     let leverage = 2;
-    contract.supply_collateral_and_borrow_leveraged(0, 0, leverage);
+    contract.supply_collateral_and_borrow(0, 0, leverage);
     let balance_after = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance_before.0, balance_after.0);
     let borrow = contract.borrows.get(&0).unwrap();
