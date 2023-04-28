@@ -68,7 +68,7 @@ pub struct Contract {
     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
     pub metadata: LazyOption<NFTContractMetadata>,
     pub positions_opened: u128,
-    pub deposits: HashMap<DepositId, Deposit>,
+    pub deposits: HashMap<AccountId, HashMap<TokenId, Deposit>>,
     pub deposits_created_number: DepositId,
     pub reserves: UnorderedMap<AccountId, Reserve>,
     pub borrows: UnorderedMap<BorrowId, Borrow>,
@@ -451,62 +451,112 @@ impl Contract {
     pub fn create_deposit(&mut self, asset: &AccountId, amount: U128) {
         let account_id = env::predecessor_account_id();
         let timestamp = env::block_timestamp();
-        let deposit = Deposit {
-            owner_id: account_id.clone(),
-            asset: asset.clone(),
-            amount: amount.0,
-            timestamp,
-            last_update_timestamp: timestamp,
-            apr: APR_DEPOSIT,
-            growth: 0,
-        };
-        self.deposits.insert(self.deposits_created_number, deposit);
-        self.deposits_created_number += 1;
+        if let Some(map) = self.deposits.get(&account_id) {
+            if let Some(deposit) = map.get(asset) {
+                let old_amount = deposit.amount;
+                let old_growth = deposit.growth;
+                let deposit = Deposit {
+                    owner_id: account_id.clone(),
+                    asset: asset.clone(),
+                    amount: amount.0 + old_amount,
+                    timestamp,
+                    last_update_timestamp: timestamp,
+                    apr: APR_DEPOSIT,
+                    growth: old_growth,
+                };
+                let mut map = map.clone();
+                map.insert(asset.clone(), deposit);
+                self.deposits.insert(account_id.clone(), map);
+            } else {
+                let deposit = Deposit {
+                    owner_id: account_id.clone(),
+                    asset: asset.clone(),
+                    amount: amount.0,
+                    timestamp,
+                    last_update_timestamp: timestamp,
+                    apr: APR_DEPOSIT,
+                    growth: 0,
+                };
+                let mut map = map.clone();
+                map.insert(asset.clone(), deposit);
+                self.deposits.insert(account_id.clone(), map.clone());
+            }
+        } else {
+            let deposit = Deposit {
+                owner_id: account_id.clone(),
+                asset: asset.clone(),
+                amount: amount.0,
+                timestamp,
+                last_update_timestamp: timestamp,
+                apr: APR_DEPOSIT,
+                growth: 0,
+            };
+            let mut map = HashMap::new();
+            map.insert(asset.clone(), deposit);
+            self.deposits.insert(account_id.clone(), map);
+        }
         self.decrease_balance(&account_id, &asset.to_string(), amount.0);
+
         let mut reserve = self.reserves.get(&asset).expect(RSR0);
         reserve.increase_deposit(amount.0);
         self.reserves.insert(&asset, &reserve);
     }
 
-    pub fn close_deposit(&mut self, deposit_id: u128) {
+    pub fn close_deposit(&mut self, asset: &AccountId, amount: U128) {
         let account_id = env::predecessor_account_id();
-        let deposit = self.deposits.remove(&deposit_id).expect(DPS0);
-        assert_eq!(deposit.owner_id, account_id, "{}", DPS1);
-        self.increase_balance(&account_id, &deposit.asset, deposit.amount + deposit.growth);
-        let mut reserve = self.reserves.get(&deposit.asset).expect(RSR0);
-        reserve.decrease_deposit(deposit.amount);
-        self.reserves.insert(&deposit.asset, &reserve);
+        let timestamp = env::block_timestamp();
+        let map = self.deposits.get(&account_id).unwrap();
+        let deposit = map.get(asset).unwrap();
+        let old_amount = deposit.amount;
+        assert!(old_amount >= amount.0);
+        let old_growth = deposit.growth;
+        let deposit = Deposit {
+            owner_id: account_id.clone(),
+            asset: asset.clone(),
+            amount: old_amount - amount.0,
+            timestamp,
+            last_update_timestamp: timestamp,
+            apr: APR_DEPOSIT,
+            growth: old_growth,
+        };
+        let mut map = map.clone();
+        map.insert(asset.clone(), deposit);
+        self.deposits.insert(account_id.clone(), map.clone());
+        self.increase_balance(&account_id, &asset.to_string(), amount.0);
+
+        let mut reserve = self.reserves.get(&asset).expect(RSR0);
+        reserve.increase_deposit(amount.0);
+        self.reserves.insert(&asset, &reserve);
     }
 
     pub fn refresh_deposits_growth(&mut self) {
         let current_timestamp = env::block_timestamp();
-        for (_, deposit) in &mut self.deposits {
-            deposit.refresh_growth(current_timestamp);
+        for (_, map) in &mut self.deposits {
+            for (_, deposit) in map {
+                deposit.refresh_growth(current_timestamp);
+            }
         }
     }
 
-    #[allow(unused_assignments)]
-    pub fn take_deposit_growth(&mut self, deposit_id: u128, amount: U128) -> U128 {
-        let account_id = env::predecessor_account_id();
-        let mut asset: Option<AccountId> = None;
-        let mut growth = 0;
-        let deposit = self.deposits.get_mut(&deposit_id).expect(DPS0);
-        assert_eq!(deposit.owner_id, account_id, "{}", DPS1);
-        deposit.refresh_growth(env::block_timestamp());
-        growth = deposit.take_growth(amount.0);
-        asset = Some(deposit.asset.clone());
-        if let Some(asset) = asset {
-            self.increase_balance(&account_id, &asset, growth);
-            return growth.into();
-        }
-        0.into()
-    }
+    // #[allow(unused_assignments)]
+    // pub fn take_deposit_growth(&mut self, asset: AccountId, amount: U128) -> U128 {
+    //     let account_id = env::predecessor_account_id();
+    //     let mut growth = 0;
+    //     let map = self.deposits.get_mut(&account_id).expect(DPS0);
+    //     let deposit
+    //     assert_eq!(deposit.owner_id, account_id, "{}", DPS1);
+    //     deposit.refresh_growth(env::block_timestamp());
+    //     growth = deposit.take_growth(amount.0);
+    //     asset = Some(deposit.asset.clone());
+    //     if let Some(asset) = asset {
+    //         self.increase_balance(&account_id, &asset, growth);
+    //         return growth.into();
+    //     }
+    //     0.into()
+    // }
 
-    pub fn get_account_deposits(&self, account_id: &AccountId) -> HashMap<&DepositId, &Deposit> {
-        self.deposits
-            .iter()
-            .filter(|(_, x)| &x.owner_id == account_id)
-            .collect()
+    pub fn get_account_deposits(&self, account_id: AccountId) -> HashMap<TokenId, Deposit> {
+        self.deposits.get(&account_id).unwrap().clone()
     }
 
     // #[payable]
