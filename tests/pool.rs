@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use mycelium_lab_near_amm::position::Position;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json;
 use near_sdk::test_utils::accounts;
@@ -74,6 +75,51 @@ fn open_position_is_correct() {
     assert_eq!(balance, U128(0));
     let balance = contract.get_balance(&accounts(0).to_string(), &accounts(2).to_string());
     assert_eq!(balance, U128(0));
+}
+
+#[test]
+fn open_position_one_more_test() {
+    // let (mut context, mut contract) = setup_contract();
+    // contract.create_pool(
+    //     accounts(1).to_string(),
+    //     accounts(2).to_string(),
+    //     0.000000000001,
+    //     1,
+    //     1,
+    // );
+    // testing_env!(context.predecessor_account_id(accounts(1)).build());
+    // deposit_tokens(
+    //     &mut context,
+    //     &mut contract,
+    //     accounts(0),
+    //     accounts(1),
+    //     U128(100000000000000000000000000),
+    // );
+    // testing_env!(context.predecessor_account_id(accounts(2)).build());
+    // deposit_tokens(
+    //     &mut context,
+    //     &mut contract,
+    //     accounts(0),
+    //     accounts(2),
+    //     U128(100000000000000000000000000),
+    // );
+    // testing_env!(context.predecessor_account_id(accounts(0)).build());
+    // testing_env!(context.signer_account_id(accounts(0)).build());
+    // contract.open_position(0, Some(U128(10000000000000000000)), None, 0.9 / 1000000000000.0, 1.1 / 1000000000000.0);
+    let position = Position::new(
+        String::new(),
+        Some(U128(10000000000000000000)),
+        None,
+        0.9 / 1000000000000.0,
+        1.1 / 1000000000000.0,
+        0.000001,
+    );
+    // let pool = &contract.pools[0];
+    // let position = pool.positions.get(&0).unwrap();
+    println!("position.liquidity[0] = {}, position.liquidity[1] = {}", position.token0_locked, position.token1_locked);
+    println!("position.liquidity = {}", position.liquidity);
+    println!("position.sqrt_upper_price = {}", position.sqrt_upper_bound_price);
+    println!("position.sqrt_lower_price = {}", position.sqrt_lower_bound_price);
 }
 
 #[test]
