@@ -264,28 +264,16 @@ impl Position {
         self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
     }
 
-    pub fn get_liquidation_price(&self, borrowed0: f64, borrowed1: f64) -> (f64, f64) {
-        // let left_threshold = self.sqrt_lower_bound_price
-        //     * (self.liquidity / borrowed)
-        //     * (1.0 / self.sqrt_lower_bound_price - 1.0 / self.sqrt_upper_bound_price);
-        // if left_threshold > 1.0 {
-        //     return (borrowed / self.liquidity)
-        //         * (self.sqrt_lower_bound_price * self.sqrt_upper_bound_price
-        //             / (self.sqrt_upper_bound_price - self.sqrt_lower_bound_price));
-        // } else {
-        //     let d = 1.0
-        //         - (self.sqrt_lower_bound_price + borrowed / self.liquidity)
-        //             / self.sqrt_upper_bound_price;
-        //     return self.sqrt_upper_bound_price * self.sqrt_upper_bound_price * (1.0 - d.sqrt());
-        // }
-        let first = borrowed1
-            / (self.liquidity
-                * ((self.sqrt_lower_bound_price - self.sqrt_lower_bound_price) - borrowed0)
-                / self.sqrt_lower_bound_price
-                * self.sqrt_lower_bound_price);
-        let second = (self.liquidity * (self.sqrt_lower_bound_price - self.sqrt_lower_bound_price)
-            - borrowed1)
-            / borrowed0;
+    pub fn get_liquidation_price(&self, x0: f64, y0: f64) -> (f64, f64) {
+        // for brevity
+        let sb = self.sqrt_upper_bound_price;
+        let sa = self.sqrt_lower_bound_price;
+        let l = self.liquidity;
+
+        assert!(x0 > 0.0 && y0 > 0.0);
+        let first = y0 / ( l * (sb - sa) / (sb * sa) - x0);
+        let second = (l * (sb - sa) - y0) / x0;
+        println!("sb = {sb}, sa = {sa}, l = {l}, x0 = {x0}, y0 = {y0}");
         (first, second)
     }
 }
@@ -357,11 +345,11 @@ pub fn _calculate_b2(sp: f64, sa: f64, x: f64, y: f64) -> f64 {
 }
 
 pub fn tick_to_sqrt_price(tick: i32) -> f64 {
-    BASIS_POINT.powf(tick as f64 / 2.0)
+    1.0001_f64.powf(tick as f64 / 2.0)
 }
 
 pub fn sqrt_price_to_tick(sqrt_price: f64) -> i32 {
-    (2.0 * sqrt_price.log(BASIS_POINT)).floor() as i32
+    (2.0 * sqrt_price.log(1.0001)).floor() as i32
 }
 
 pub fn _calculate_sp(l: f64, x: f64, sb: f64) -> f64 {
@@ -651,5 +639,31 @@ mod test {
         assert!(new_sqrt_price > sqrt_price);
         let new_tick = sqrt_price_to_tick(new_sqrt_price);
         assert!(new_tick > tick)
+    }
+
+    #[test]
+    fn liquidation_prices1() {
+        let position = Position::new(String::new(), None, Some(U128(50)), 121.0, 169.0, 12.0);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        println!("prices are {} {}", prices.0, prices.1);
+        assert_eq!(prices.0.round(), 132.0);
+        assert_eq!(prices.1.round(), 156.0);
+    }
+
+    #[test]
+    fn liquidation_prices2() {
+        let position = Position::new(String::new(), None, Some(U128(50)), 1.0, 1000.0, 20.0);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        println!("prices are {} {}", prices.0, prices.1);
+        assert_eq!(prices.0.round(), 20.0);
+        assert_eq!(prices.1.round(), 632.0);
+    }
+
+    #[should_panic]
+    #[test]
+    fn liquidation_prices3() {
+        let position = Position::new(String::new(), None, Some(U128(50)), 121.0, 144.0, 13.0);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        println!("prices are {} {}", prices.0, prices.1);
     }
 }

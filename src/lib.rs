@@ -18,7 +18,7 @@ use crate::position::Position;
 pub mod balance;
 mod errors;
 pub mod pool;
-mod position;
+pub mod position;
 mod token_receiver;
 
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
