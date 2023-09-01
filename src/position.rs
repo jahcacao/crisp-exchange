@@ -5,7 +5,7 @@ use near_sdk::{
     AccountId,
 };
 
-use crate::{errors::*, BASIS_POINT};
+use crate::{errors::*};
 
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
@@ -264,17 +264,17 @@ impl Position {
         self.total_locked = self.token1_locked + self.token0_locked * sqrt_price * sqrt_price;
     }
 
-    pub fn get_liquidation_price(&self, x0: f64, y0: f64) -> (f64, f64) {
+    pub fn get_liquidation_price(&self, xd: f64, yd: f64, ltv_max: f64) -> (f64, f64) {
         // for brevity
         let sb = self.sqrt_upper_bound_price;
         let sa = self.sqrt_lower_bound_price;
         let l = self.liquidity;
 
-        assert!(x0 > 0.0 && y0 > 0.0);
-        let first = y0 / ( l * (sb - sa) / (sb * sa) - x0);
-        let second = (l * (sb - sa) - y0) / x0;
-        println!("sb = {sb}, sa = {sa}, l = {l}, x0 = {x0}, y0 = {y0}");
-        (first, second)
+        assert!(xd > 0.0 && yd > 0.0);
+        let pliqa = yd / ( ltv_max * l * (sb - sa) / (sb * sa) - xd);
+        let pliqb = (ltv_max * l * (sb - sa) - yd) / xd;
+        println!("sb = {sb}, sa = {sa}, l = {l}, xd = {xd}, yd = {yd}");
+        (pliqa, pliqb)
     }
 }
 

@@ -8,12 +8,12 @@ pub type BorrowId = u128;
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Borrow {
+    pub id: BorrowId,
     pub owner_id: AccountId,
     pub asset0: AccountId,
     pub asset1: AccountId,
     pub borrowed0: u128,
     pub borrowed1: u128,
-    pub collateral: u128,
     pub position_id: u128,
     pub pool_id: usize,
     pub last_update_timestamp: u64,

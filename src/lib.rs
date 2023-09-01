@@ -2,7 +2,7 @@ use balance::borrow::{Borrow, BorrowId};
 use balance::deposit::{Deposit, DepositId};
 use balance::reserve::Reserve;
 use balance::token_receiver::OpenPositionRequest;
-use balance::BalancesMap;
+pub use balance::BalancesMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::{env, ext_contract, near_bindgen};
@@ -51,7 +51,12 @@ pub const BASIS_POINT: f64 = 1.0001;
 pub const BASIS_POINT_TO_PERCENT: f64 = 10000.0;
 pub const APR_DEPOSIT: u16 = 500;
 pub const APR_BORROW: u16 = 1000;
-pub const BORROW_RATIO: f64 = 0.8;
+
+/// Maximum Loan-to-Value (LTV) ratio
+/// This is the maximum ratio of the loan amount to the value of the collateral.
+/// For example, if LTV_MAX is 0.8, you can borrow up to 80% of the value of your collateral.
+pub const LTV_MAX: f64 = 0.8;
+
 pub const TGAS: u64 = 1000000000000;
 
 type Pair = (AccountId, AccountId);
@@ -525,7 +530,7 @@ impl Contract {
         self.increase_balance(&account_id, &asset.to_string(), amount.0);
 
         let mut reserve = self.reserves.get(&asset).expect(RSR0);
-        reserve.increase_deposit(amount.0);
+        reserve.decrease_deposit(amount.0);
         self.reserves.insert(&asset, &reserve);
     }
 
@@ -634,22 +639,21 @@ impl Contract {
         self.reserves.insert(&token1, &reserve);
 
         let mut position = pool.positions.get(&position_id).expect(PST0).clone();
-        let total_locked = position.total_locked as u128;
         position.add_liquidity(
-            Some(U128::from(position.token0_locked as u128 * (leverage - 1))),
+            Some(U128::from(borrowed0)),
             None,
             pool.sqrt_price,
         );
-        let liquidation_price = position.get_liquidation_price(borrowed0 as f64, borrowed1 as f64);
+        let liquidation_price = position.get_liquidation_price(borrowed0 as f64, borrowed1 as f64, LTV_MAX);
         pool.positions.insert(position_id, position);
 
         let borrow = Borrow {
+            id: self.borrows_number,
             owner_id: account_id,
             asset0: token0,
             asset1: token1,
             borrowed0,
             borrowed1,
-            collateral: total_locked * leverage,
             position_id,
             pool_id,
             last_update_timestamp: env::block_timestamp(),
@@ -660,12 +664,19 @@ impl Contract {
         };
         self.borrows.insert(&self.borrows_number, &borrow);
         self.borrows_number += 1;
-        self.nft_transfer(
-            env::current_account_id(),
-            position_id.to_string(),
-            None,
-            None,
-        );
+        // Make sure the loan is sufficiently overcollateralized
+        let health_factor = self.get_borrow_health_factor(borrow.id);
+        assert!(health_factor >= 1.0);
+
+        // commented out for now because when NFT is tranferred away from the owner
+        // other functions will fail without it, including return_collateral_and_repay()
+        //
+        // self.nft_transfer(
+        //     env::current_account_id(),
+        //     position_id.to_string(),
+        //     None,
+        //     None,
+        // );
     }
 
     pub fn return_collateral_and_repay(&mut self, borrow_id: u128) {
@@ -673,8 +684,6 @@ impl Contract {
         let borrow = self.borrows.remove(&borrow_id).expect(BRR0);
         let pool = &self.pools[borrow.pool_id];
         let position = pool.positions.get(&borrow.position_id).expect(PST0);
-        let health_factor = self.get_borrow_health_factor(borrow_id);
-        assert!(health_factor >= 1.0);
         assert_eq!(account_id, borrow.owner_id);
         if let Some(leverage) = borrow.leverage {
             let mut reserve = self.reserves.get(&borrow.asset0).expect(RSR0);
@@ -699,15 +708,15 @@ impl Contract {
             reserve.borrowed -= borrow.borrowed1;
             self.reserves.insert(&borrow.asset1, &reserve);
         }
-        ext_self::nft_transfer(
-            account_id,
-            borrow.position_id.to_string(),
-            None,
-            None,
-            &env::current_account_id(),
-            0,
-            10 * TGAS,
-        );
+        // ext_self::nft_transfer(
+        //     account_id,
+        //     borrow.position_id.to_string(),
+        //     None,
+        //     None,
+        //     &env::current_account_id(),
+        //     0,
+        //     10 * TGAS,
+        // );
     }
 
     pub fn get_liquidation_list(&self) -> Vec<BorrowId> {
@@ -746,7 +755,25 @@ impl Contract {
             upper_bound_price,
             pool.sqrt_price,
         );
-        position.get_liquidation_price(borrowed0, borrowed1)
+        position.get_liquidation_price(borrowed0, borrowed1, LTV_MAX)
+    }
+
+    pub fn get_max_leverage(
+        &self,
+        pool_id: usize,
+        lower_bound_price: f64,
+        upper_bound_price: f64,
+    ) -> f64 {
+        self.assert_pool_exists(pool_id);
+        let pool = &self.pools[pool_id];
+        let sqrt_pa = lower_bound_price.sqrt();
+        let sqrt_pb = upper_bound_price.sqrt();
+        let sqrt_p = pool.sqrt_price;
+        if sqrt_p > sqrt_pa && sqrt_p < sqrt_pb {
+            LTV_MAX * (sqrt_pb - sqrt_pa) / (((sqrt_p - sqrt_pa)/sqrt_pa*sqrt_pb + (sqrt_pb - sqrt_p)/sqrt_p*sqrt_pa).max(sqrt_pb*(sqrt_pb - sqrt_p)/sqrt_p + sqrt_p - sqrt_pa)) + 1.0
+        } else {
+            LTV_MAX * sqrt_pa / sqrt_pb + 1.0
+        }
     }
 
     pub fn get_borrow_health_factor(&self, borrow_id: BorrowId) -> f64 {
@@ -754,7 +781,8 @@ impl Contract {
         let pool = &self.pools[borrow.pool_id];
         let position = pool.positions.get(&borrow.position_id).unwrap();
         let price = pool.sqrt_price * pool.sqrt_price;
-        position.total_locked / (borrow.borrowed0 as f64 * price + borrow.borrowed1 as f64)
+        let ltv = (borrow.borrowed0 as f64 * price + borrow.borrowed1 as f64) / (position.total_locked as f64);
+        LTV_MAX / ltv
     }
 
     pub fn liquidate(&mut self, borrow_id: BorrowId) {
