@@ -36,6 +36,7 @@ pub struct TokenMetadata {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Token {
     pub owner_id: AccountId,
     pub approved_account_ids: HashMap<AccountId, u64>,
