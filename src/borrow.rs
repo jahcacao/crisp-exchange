@@ -18,7 +18,7 @@ pub struct Borrow {
     pub pool_id: usize,
     pub last_update_timestamp: u64,
     pub apr: u16,
-    pub leverage: Option<u128>,
+    pub leverage: f64,
     pub fees: u128,
     pub liquidation_price: (f64, f64),
 }

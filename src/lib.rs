@@ -617,16 +617,16 @@ impl Contract {
         &mut self,
         pool_id: usize,
         position_id: u128,
-        leverage: u128,
+        leverage: f64,
     ) {
-        assert!(leverage > 1);
+        assert!(leverage > 1.0);
         let account_id = env::predecessor_account_id();
         let pool = &mut self.pools[pool_id];
         let token0 = pool.token0.clone();
         let token1 = pool.token1.clone();
         let position = pool.positions.get(&position_id).expect(PST0).clone();
-        let borrowed0 = position.token0_locked as u128 * (leverage - 1);
-        let borrowed1 = position.token1_locked as u128 * (leverage - 1);
+        let borrowed0 = (position.token0_locked * (leverage - 1.0)) as u128;
+        let borrowed1 = (position.token1_locked * (leverage - 1.0)) as u128;
 
         let mut reserve = self.reserves.get(&token0).expect(RSR0);
         reserve.borrowed += borrowed0;
@@ -658,7 +658,7 @@ impl Contract {
             pool_id,
             last_update_timestamp: env::block_timestamp(),
             apr: APR_BORROW,
-            leverage: Some(leverage),
+            leverage: leverage,
             fees: 0,
             liquidation_price,
         };
@@ -685,29 +685,18 @@ impl Contract {
         let pool = &self.pools[borrow.pool_id];
         let position = pool.positions.get(&borrow.position_id).expect(PST0);
         assert_eq!(account_id, borrow.owner_id);
-        if let Some(leverage) = borrow.leverage {
-            let mut reserve = self.reserves.get(&borrow.asset0).expect(RSR0);
-            reserve.borrowed -= borrow.borrowed0;
-            self.reserves.insert(&borrow.asset0, &reserve);
-            let mut reserve = self.reserves.get(&borrow.asset1).expect(RSR0);
-            reserve.borrowed -= borrow.borrowed1;
-            self.reserves.insert(&borrow.asset1, &reserve);
-            let pool = &self.pools[borrow.pool_id];
-            let position = pool.positions.get(&borrow.position_id).unwrap();
-            self.remove_liquidity(
-                borrow.pool_id,
-                borrow.position_id,
-                None,
-                Some(U128::from(
-                    position.token1_locked as u128 * (leverage - 1) + borrow.fees,
-                )),
-            );
-        } else {
-            self.decrease_balance(&account_id, &borrow.asset0, borrow.borrowed1 + borrow.fees);
-            let mut reserve = self.reserves.get(&borrow.asset1).expect(RSR0);
-            reserve.borrowed -= borrow.borrowed1;
-            self.reserves.insert(&borrow.asset1, &reserve);
-        }
+        let mut reserve = self.reserves.get(&borrow.asset0).expect(RSR0);
+        reserve.borrowed -= borrow.borrowed0;
+        self.reserves.insert(&borrow.asset0, &reserve);
+        let mut reserve = self.reserves.get(&borrow.asset1).expect(RSR0);
+        reserve.borrowed -= borrow.borrowed1;
+        self.reserves.insert(&borrow.asset1, &reserve);
+        self.remove_liquidity(
+            borrow.pool_id,
+            borrow.position_id,
+            None,
+            Some(U128::from(borrow.borrowed1 + borrow.fees)),
+        );
         // ext_self::nft_transfer(
         //     account_id,
         //     borrow.position_id.to_string(),
@@ -793,15 +782,14 @@ impl Contract {
         let health_factor = self.get_borrow_health_factor(borrow_id);
         assert!(health_factor < 1.0);
         let discount = (1.0 + health_factor) / 2.0;
-        let discounted_collateral_sum =
-            (position.total_locked * discount / borrow.leverage.unwrap_or(1) as f64) as u128;
+        let discounted_collateral_sum = (position.total_locked * discount / borrow.leverage) as u128;
         self.decrease_balance(&account_id, &borrow.asset1, discounted_collateral_sum);
-        if let Some(leverage) = borrow.leverage {
+        if let leverage = borrow.leverage {
             let pool = &mut self.pools[borrow.pool_id];
             let mut position = pool.positions.get(&borrow.position_id).unwrap().clone();
             position.remove_liquidity(
                 Some(U128::from(
-                    (position.token0_locked * (leverage as f64 - 1.0) / leverage as f64) as u128,
+                    (position.token0_locked * (leverage - 1.0) / leverage) as u128,
                 )),
                 None,
                 pool.sqrt_price,
