@@ -755,13 +755,14 @@ impl Contract {
     ) -> f64 {
         self.assert_pool_exists(pool_id);
         let pool = &self.pools[pool_id];
-        let sqrt_pa = lower_bound_price.sqrt();
-        let sqrt_pb = upper_bound_price.sqrt();
-        let sqrt_p = pool.sqrt_price;
-        if sqrt_p > sqrt_pa && sqrt_p < sqrt_pb {
-            LTV_MAX * (sqrt_pb - sqrt_pa) / (((sqrt_p - sqrt_pa)/sqrt_pa*sqrt_pb + (sqrt_pb - sqrt_p)/sqrt_p*sqrt_pa).max(sqrt_pb*(sqrt_pb - sqrt_p)/sqrt_p + sqrt_p - sqrt_pa)) + 1.0
+        let pb = upper_bound_price;
+        let rpa = lower_bound_price.sqrt();
+        let rpb = upper_bound_price.sqrt();
+        let rp = pool.sqrt_price;
+        if rp > rpa && rp < rpb {
+            1.0 / (1.0 - LTV_MAX / f64::max(((rp - rpa)/(rpb - rpa)*rp/rpa+(rpb-rp)/(rpb-rpa)*rpa/rp), (pb/rpa-rpb+rp-rpa)/(rpb-rpa)))
         } else {
-            LTV_MAX * sqrt_pa / sqrt_pb + 1.0
+            1.0 / (1.0 - LTV_MAX * rpa / rpb)
         }
     }
 
