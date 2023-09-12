@@ -8,16 +8,6 @@ fi
 CONTRACT=$1
 MASTER_ACCOUNT=$2
 
-echo ">> Preparing the account"
-near delete $CONTRACT $MASTER_ACCOUNT
-near create-account $CONTRACT --masterAccount $MASTER_ACCOUNT
-
-set -e
-export NEAR_ENV=testnet
-
-echo ">> Deploying the contract"
-./deploy.sh
-
 echo ">> Initializing the contract"
 near call $CONTRACT new '{"owner_id": "'$MASTER_ACCOUNT'"}' --accountId $MASTER_ACCOUNT
 
