@@ -3,3 +3,4 @@
 Cargo.lock
 
 /neardev/
+.DS_Store

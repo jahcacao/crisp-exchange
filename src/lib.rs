@@ -738,8 +738,8 @@ impl Contract {
         let pool = &self.pools[pool_id];
         let position = Position::new(
             String::new(),
-            token0_liquidity,
-            token1_liquidity,
+            token0_liquidity.map(|v| U128(v.0 + borrowed0 as u128)).or(None),
+            token1_liquidity.map(|v| U128(v.0 + borrowed1 as u128)).or(None),
             lower_bound_price,
             upper_bound_price,
             pool.sqrt_price,
@@ -760,7 +760,10 @@ impl Contract {
         let rpb = upper_bound_price.sqrt();
         let rp = pool.sqrt_price;
         if rp > rpa && rp < rpb {
-            1.0 / (1.0 - LTV_MAX / f64::max(((rp - rpa)/(rpb - rpa)*rp/rpa+(rpb-rp)/(rpb-rpa)*rpa/rp), (pb/rpa-rpb+rp-rpa)/(rpb-rpa)))
+            1.0 / (1.0 - LTV_MAX / f64::max(
+                ((rp - rpa) / (rpb - rpa)) * (rp / rpa) + ((rpb - rp) / (rpb - rpa)) * (rpa / rp),
+                (pb / rp - rpb + rp - rpa) / (rpb - rpa)
+            ))
         } else {
             1.0 / (1.0 - LTV_MAX * rpa / rpb)
         }
