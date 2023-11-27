@@ -15,6 +15,8 @@ The smart contract implements an advanced DEX where you can:
 - lend your tokens for others to borrow for leverage and earn interest
 - liquidate underwater leveraged positions to earn a premium
 
+Read a more detailed overview [here](OVERVIEW.md).
+
 ## Requirements
 - NEAR 3.4.2
 - Rust 1.64.0
